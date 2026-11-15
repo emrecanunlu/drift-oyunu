@@ -3,8 +3,8 @@ import type { RoadPoint } from "../sim/road";
 import { mulberry32 } from "../sim/rng";
 
 const CHUNK_POINTS = 25; // 50 m
-const asphalt = new THREE.MeshLambertMaterial({ color: 0x3a3340 });
-const paint = new THREE.MeshBasicMaterial({ color: 0xf4e6d8 });
+const asphalt = new THREE.MeshLambertMaterial({ color: 0x3a3340, side: THREE.DoubleSide });
+const paint = new THREE.MeshBasicMaterial({ color: 0xf4e6d8, side: THREE.DoubleSide });
 const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3a2a, flatShading: true });
 const leafMat = new THREE.MeshLambertMaterial({ color: 0x4f6b3a, flatShading: true });
 const rockMat = new THREE.MeshLambertMaterial({ color: 0x8b6f6a, flatShading: true });

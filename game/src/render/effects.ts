@@ -67,7 +67,7 @@ export class Smoke {
     const tex = puffTexture();
     for (let i = 0; i < SMOKE_MAX; i++) {
       const sprite = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: tex, color: 0xf3e3e8, transparent: true, opacity: 0, depthWrite: false }),
+        new THREE.SpriteMaterial({ map: tex, color: 0xf3e3e8, transparent: true, opacity: 0, depthWrite: false, fog: true }),
       );
       sprite.visible = false;
       scene.add(sprite);

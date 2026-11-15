@@ -49,7 +49,7 @@ export function createWorld(container: HTMLElement): World {
 
   scene.add(new THREE.HemisphereLight(0xffc9a0, 0x3b2a4a, 1.1));
   const sun = new THREE.DirectionalLight(0xffa060, 1.6);
-  sun.position.set(-60, 40, 120);
+  sun.position.set(-50, 60, -30);
   scene.add(sun);
 
   const ground = new THREE.Mesh(
