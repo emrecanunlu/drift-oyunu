@@ -1,4 +1,4 @@
-import { engineTone, squealGain, dingPitch, chordAt, midiToHz } from "./params";
+import { engineState, squealGain, dingPitch, chordAt, midiToHz } from "./params";
 
 const BPM = 92;
 const EIGHTH = 60 / BPM / 2;
@@ -16,10 +16,14 @@ export class Sound {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private noise!: AudioBuffer;
-  private eng1!: OscillatorNode;
-  private eng2!: OscillatorNode;
+  /** [multiple of firing freq, oscillator] */
+  private harmonics: [number, OscillatorNode][] = [];
+  private rumble!: OscillatorNode;
   private engFilter!: BiquadFilterNode;
   private engGain!: GainNode;
+  private intake!: GainNode;
+  private lastGear = 1;
+  private dipUntil = 0;
   private squealFilter!: BiquadFilterNode;
   private squeal!: GainNode;
   private music!: GainNode;
@@ -43,22 +47,52 @@ export class Sound {
     this.master.gain.value = 0.8;
     this.master.connect(ctx.destination);
 
-    // Engine: saw + square sub through a lowpass.
+    // Engine: harmonics of the firing frequency → soft saturation → lowpass,
+    // amplitude-modulated at half the firing rate for a pulsing rumble.
     this.engFilter = ctx.createBiquadFilter();
     this.engFilter.type = "lowpass";
+    this.engFilter.Q.value = 0.7;
+    const shaper = ctx.createWaveShaper();
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < curve.length; i++) curve[i] = Math.tanh((i / 512 - 1) * 2.2);
+    shaper.curve = curve;
+    const mix = ctx.createGain();
+    mix.gain.value = 0.5;
+    const spec: [number, OscillatorType, number][] = [
+      [0.5, "sine", 0.7], [1, "sine", 1], [2, "triangle", 0.35], [3, "sine", 0.15], [4, "triangle", 0.06],
+    ];
+    for (const [mult, type, amp] of spec) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      const g = ctx.createGain();
+      g.gain.value = amp;
+      o.connect(g).connect(mix);
+      o.start();
+      this.harmonics.push([mult, o]);
+    }
+    const am = ctx.createGain();
+    am.gain.value = 0.75;
+    this.rumble = ctx.createOscillator();
+    const depth = ctx.createGain();
+    depth.gain.value = 0.25;
+    this.rumble.connect(depth).connect(am.gain);
+    this.rumble.start();
     this.engGain = ctx.createGain();
     this.engGain.gain.value = 0;
-    this.eng1 = ctx.createOscillator();
-    this.eng1.type = "sawtooth";
-    this.eng2 = ctx.createOscillator();
-    this.eng2.type = "square";
-    const sub = ctx.createGain();
-    sub.gain.value = 0.5;
-    this.eng1.connect(this.engFilter);
-    this.eng2.connect(sub).connect(this.engFilter);
-    this.engFilter.connect(this.engGain).connect(this.master);
-    this.eng1.start();
-    this.eng2.start();
+    mix.connect(shaper).connect(this.engFilter).connect(am).connect(this.engGain).connect(this.master);
+
+    // Intake/exhaust hiss under load.
+    const hiss = ctx.createBufferSource();
+    hiss.buffer = this.noise;
+    hiss.loop = true;
+    const hissF = ctx.createBiquadFilter();
+    hissF.type = "bandpass";
+    hissF.frequency.value = 450;
+    hissF.Q.value = 0.8;
+    this.intake = ctx.createGain();
+    this.intake.gain.value = 0;
+    hiss.connect(hissF).connect(this.intake).connect(this.master);
+    hiss.start();
 
     // Tire squeal: looping noise through a resonant bandpass.
     const src = ctx.createBufferSource();
@@ -66,8 +100,8 @@ export class Sound {
     src.loop = true;
     this.squealFilter = ctx.createBiquadFilter();
     this.squealFilter.type = "bandpass";
-    this.squealFilter.frequency.value = 1800;
-    this.squealFilter.Q.value = 4;
+    this.squealFilter.frequency.value = 1100;
+    this.squealFilter.Q.value = 2;
     this.squeal = ctx.createGain();
     this.squeal.gain.value = 0;
     src.connect(this.squealFilter).connect(this.squeal).connect(this.master);
@@ -86,17 +120,28 @@ export class Sound {
     if (this.ctx) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.8, this.ctx.currentTime, 0.05);
   }
 
-  update(speed: number, nitro: boolean, drifting: boolean, slip: number, running: boolean): void {
+  update(speed: number, accelerating: boolean, nitro: boolean, drifting: boolean, slip: number, running: boolean): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
-    const e = engineTone(speed, nitro);
-    this.eng1.frequency.setTargetAtTime(e.freq, t, 0.05);
-    this.eng2.frequency.setTargetAtTime(e.freq / 2, t, 0.05);
-    this.engFilter.frequency.setTargetAtTime(500 + e.freq * (nitro ? 6 : 4), t, 0.08);
-    this.engGain.gain.setTargetAtTime(running ? e.gain : 0, t, 0.1);
+    const e = engineState(speed, accelerating, nitro);
+    for (const [mult, o] of this.harmonics) o.frequency.setTargetAtTime(e.fireHz * mult, t, 0.06);
+    this.rumble.frequency.setTargetAtTime(e.fireHz / 2, t, 0.06);
+    this.engFilter.frequency.setTargetAtTime(e.cutoff, t, 0.12);
+    const gain = running ? e.gain : 0;
+    if (e.gear !== this.lastGear && running) {
+      // Gear change: brief lift-off.
+      this.engGain.gain.cancelScheduledValues(t);
+      this.engGain.gain.setTargetAtTime(gain * 0.35, t, 0.02);
+      this.engGain.gain.setTargetAtTime(gain, t + 0.12, 0.05);
+      this.dipUntil = t + 0.14;
+    } else if (t >= this.dipUntil) {
+      this.engGain.gain.setTargetAtTime(gain, t, 0.15);
+    }
+    this.lastGear = e.gear;
+    this.intake.gain.setTargetAtTime(running ? 0.012 + e.load * 0.03 * (e.rpm / 7000) : 0, t, 0.15);
     this.squeal.gain.setTargetAtTime(running ? squealGain(drifting, slip) : 0, t, 0.06);
-    this.squealFilter.frequency.setTargetAtTime(1500 + Math.abs(slip) * 900, t, 0.1);
+    this.squealFilter.frequency.setTargetAtTime(900 + Math.abs(slip) * 500 + Math.random() * 80, t, 0.05);
   }
 
   ding(multiplier: number): void {

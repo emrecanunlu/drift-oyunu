@@ -1,15 +1,39 @@
-/** Speed (m/s) per gear for the engine sound. */
-export const GEAR_SPEED = 14;
-const MAX_GEAR = 5;
+export const IDLE_RPM = 900;
+export const REDLINE = 7000;
+const SHIFT_UP_RPM = 6300;
+const CRUISE_MIN_RPM = 2200;
+/** Road speed (m/s) at redline in each gear → rpm per m/s. */
+const GEAR_TOP = [15, 27, 40, 54, 68, 85];
+const RATIO = GEAR_TOP.map((v) => REDLINE / v);
 
-export function engineTone(speed: number, nitro: boolean): { freq: number; gain: number } {
-  const gear = Math.min(MAX_GEAR, Math.floor(speed / GEAR_SPEED));
-  const within = Math.min(1.4, (speed - gear * GEAR_SPEED) / GEAR_SPEED);
-  const freq = (55 + within * 70 + gear * 8) * (nitro ? 1.15 : 1);
-  const gain = 0.05 + Math.min(1, speed / 40) * 0.07;
-  return { freq, gain };
+export type EngineState = { rpm: number; gear: number; fireHz: number; gain: number; cutoff: number; load: number };
+
+/**
+ * A 6-speed automatic: under load it holds gears to ~6300 rpm; cruising it picks the highest
+ * gear that keeps ~2200+ rpm (calm drone). 4-cylinder firing frequency = rpm / 30.
+ */
+export function engineState(speed: number, accelerating: boolean, nitro: boolean): EngineState {
+  const load = accelerating || nitro ? 1 : 0;
+  let gear = 1;
+  if (load) {
+    while (gear < GEAR_TOP.length && speed * RATIO[gear - 1] > SHIFT_UP_RPM) gear++;
+  } else {
+    gear = GEAR_TOP.length;
+    while (gear > 1 && speed * RATIO[gear - 1] < CRUISE_MIN_RPM) gear--;
+  }
+  let rpm = Math.max(IDLE_RPM, speed * RATIO[gear - 1]);
+  if (nitro) rpm += 600;
+  rpm = Math.min(REDLINE, rpm);
+  const r = rpm / REDLINE;
+  return {
+    rpm,
+    gear,
+    fireHz: rpm / 30,
+    load,
+    gain: (0.035 + 0.045 * r) * (load ? 1.6 : 1),
+    cutoff: (250 + rpm * 0.12) * (load ? 1.8 : 1),
+  };
 }
-
 export function squealGain(drifting: boolean, slip: number): number {
   return drifting ? Math.min(1, Math.abs(slip) / 0.8) * 0.25 : 0;
 }

@@ -59,6 +59,7 @@ async function boot() {
   });
   let carS = 0;
   let biomeIndex = -1;
+  let prevSpeed = 0;
   roadMesh.addPoints(road.ensureAhead(0));
 
   const carView = createCarMesh();
@@ -158,7 +159,10 @@ async function boot() {
       biomeIndex = biome.index;
       hud.showBiome(biome.a.name);
     }
-    sound.update(speedOf(car), current.nitro, car.drifting && !recovery.active, slipAngle(car), started);
+    const spd = speedOf(car);
+    const accelerating = (spd - prevSpeed) / Math.max(dt, 1e-3) > 0.8 || current.nitro;
+    prevSpeed = spd;
+    sound.update(spd, accelerating, current.nitro, car.drifting && !recovery.active, slipAngle(car), started);
     setRecoveryFx(world.renderer.domElement, recovery.active ? recovery.progress : 0);
     combo.update(score.pending, score.multiplier, score.comboTimeLeft());
     hud.update(score.total, Math.max(score.best, score.total), score.pending, score.multiplier, speedOf(car) * 3.6);
