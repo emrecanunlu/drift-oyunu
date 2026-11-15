@@ -190,3 +190,21 @@ drift-oyunu/
 - Kontrolcü ekranının görsel düzeni.
 - Çevre süslemelerinin miktarı ve dağılımı.
 - Ses (motor/lastik sesi) ilk sürümde opsiyonel.
+
+## Ek (2026-11-15): Ses ve değişen ortamlar
+
+Neden: 5 dk sonra oyun içine çekmiyor — manzara tekdüze, ses yok. Kullanıcı 1 (ses) ve 2 (değişen dünya) önerilerini onayladı; mini görevler sonraya.
+
+### Ortamlar (biome)
+- Sıra döngüsel: **Gün batımı çölü → Gece neon şehir → Karlı dağ → Sonbahar ormanı → (başa)**, her biri ~2 km.
+- Son ~300 m'de bir sonrakine yumuşak geçiş: gökyüzü, sis, zemin, tepeler, ışık, yol ve şerit renkleri harmanlanır.
+- Yol kenarı objeleri ortama göre: kaktüs/kaya, neon pencereli binalar, karlı çamlar/kaya, turuncu-kırmızı yapraklı ağaçlar.
+- Yolun karakteri ortama göre: çöl akıcı (daha yumuşak virajlar, daha çok düzlük), şehir orta, dağ en keskin, orman orta-yumuşak. Üst sınır yine 25 m yarıçap.
+- Yeni ortama girince ekranda ortamın adı kısa süre görünür.
+
+### Ses (Web Audio ile kodla üretilir, dosya yok)
+- Motor: hıza göre yükselen, vites hissi veren ton; nitroda daha parlak.
+- Lastik cızırtısı: drift'te, kayma açısıyla artan.
+- Kombo artışı: çarpanla yükselen kısa "ding"; yoldan çıkınca "vuuş".
+- Müzik: sakin, döngüsel synthwave (pad + bas + hafif davul), düşük seviyede.
+- Tarayıcılar sesi ancak sayfaya tıklayınca/ tuşa basınca açar → köşede "Sesi aç" butonu; **M** tuşu sesi kapatır/açar.
