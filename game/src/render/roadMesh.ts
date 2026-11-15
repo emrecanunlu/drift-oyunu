@@ -1,0 +1,98 @@
+import * as THREE from "three";
+import type { RoadPoint } from "../sim/road";
+import { mulberry32 } from "../sim/rng";
+
+const CHUNK_POINTS = 25; // 50 m
+const asphalt = new THREE.MeshLambertMaterial({ color: 0x3a3340 });
+const paint = new THREE.MeshBasicMaterial({ color: 0xf4e6d8 });
+const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3a2a, flatShading: true });
+const leafMat = new THREE.MeshLambertMaterial({ color: 0x4f6b3a, flatShading: true });
+const rockMat = new THREE.MeshLambertMaterial({ color: 0x8b6f6a, flatShading: true });
+const trunkGeo = new THREE.CylinderGeometry(0.25, 0.35, 2, 5);
+const leafGeo = new THREE.ConeGeometry(1.8, 5, 6);
+const rockGeo = new THREE.DodecahedronGeometry(1.4, 0);
+
+/** Ribbon between lateral offsets a..b. With dashLen, only every other run of dashLen points is drawn. */
+function ribbon(pts: RoadPoint[], a: number, b: number, y: number, dashLen = 0): THREE.BufferGeometry {
+  const pos: number[] = [];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    if (dashLen && Math.floor(pts[i].s / 2 / dashLen) % 2 === 1) continue;
+    const quad = [pts[i], pts[i + 1]].map((p) => {
+      const nx = Math.cos(p.heading), nz = -Math.sin(p.heading);
+      return [p.x + nx * a, p.z + nz * a, p.x + nx * b, p.z + nz * b];
+    });
+    const [[ax0, az0, bx0, bz0], [ax1, az1, bx1, bz1]] = quad;
+    pos.push(ax0, y, az0, bx0, y, bz0, ax1, y, az1, bx0, y, bz0, bx1, y, bz1, ax1, y, az1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+type Chunk = { endS: number; group: THREE.Group; owned: THREE.BufferGeometry[] };
+
+export class RoadMesh {
+  private pending: RoadPoint[] = [];
+  private chunks: Chunk[] = [];
+
+  constructor(private scene: THREE.Scene, private halfWidth: number, private seed: number) {}
+
+  addPoints(points: RoadPoint[]): void {
+    this.pending.push(...points);
+    while (this.pending.length > CHUNK_POINTS) {
+      const pts = this.pending.slice(0, CHUNK_POINTS + 1); // overlap one point so chunks join
+      this.pending = this.pending.slice(CHUNK_POINTS);
+      this.build(pts);
+    }
+  }
+
+  private build(pts: RoadPoint[]) {
+    const hw = this.halfWidth;
+    const owned = [
+      ribbon(pts, -hw, hw, 0),
+      ribbon(pts, -hw + 0.4, -hw + 0.7, 0.02),
+      ribbon(pts, hw - 0.7, hw - 0.4, 0.02),
+      ribbon(pts, -0.15, 0.15, 0.02, 3),
+    ];
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(owned[0], asphalt));
+    for (const g of owned.slice(1)) group.add(new THREE.Mesh(g, paint));
+
+    // Scenery, seeded per chunk so it is stable.
+    const rand = mulberry32(this.seed ^ Math.floor(pts[0].s));
+    const count = 4 + Math.floor(rand() * 6);
+    for (let i = 0; i < count; i++) {
+      const p = pts[Math.floor(rand() * pts.length)];
+      const side = rand() < 0.5 ? -1 : 1;
+      const off = side * (hw + 5 + rand() * 50);
+      const x = p.x + Math.cos(p.heading) * off, z = p.z - Math.sin(p.heading) * off;
+      const s = 0.7 + rand() * 0.9;
+      if (rand() < 0.7) {
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.set(x, 1 * s, z);
+        trunk.scale.setScalar(s);
+        const leaves = new THREE.Mesh(leafGeo, leafMat);
+        leaves.position.set(x, 4.2 * s, z);
+        leaves.scale.setScalar(s);
+        group.add(trunk, leaves);
+      } else {
+        const rock = new THREE.Mesh(rockGeo, rockMat);
+        rock.position.set(x, 0.5 * s, z);
+        rock.scale.set(s * 1.4, s, s * 1.2);
+        rock.rotation.y = rand() * 6;
+        group.add(rock);
+      }
+    }
+    this.scene.add(group);
+    this.chunks.push({ endS: pts[pts.length - 1].s, group, owned });
+  }
+
+  trim(beforeS: number): void {
+    while (this.chunks.length && this.chunks[0].endS < beforeS) {
+      const c = this.chunks.shift()!;
+      this.scene.remove(c.group);
+      c.owned.forEach((g) => g.dispose());
+    }
+  }
+}
