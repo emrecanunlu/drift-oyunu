@@ -28,13 +28,13 @@ describe("Recovery", () => {
     expect(hold(new Recovery(), car, road, 3).started).toBe(0);
   });
   it("tolerates going a few metres off the road briefly", () => {
-    const { road, car } = setup(12); // 5 m past the edge
+    const { road, car } = setup(road0HalfWidth() + 5); // 5 m past the edge
     const r = new Recovery();
     expect(hold(r, car, road, OFFROAD_GRACE - 0.2).started).toBe(0);
     expect(r.active).toBe(false);
   });
   it("recovers after staying off the road longer than the grace period", () => {
-    const { road, car } = setup(12);
+    const { road, car } = setup(road0HalfWidth() + 5);
     const r = new Recovery();
     expect(hold(r, car, road, OFFROAD_GRACE + 0.1).started).toBe(1);
     expect(r.active).toBe(true);

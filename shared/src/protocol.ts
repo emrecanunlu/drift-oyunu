@@ -4,7 +4,7 @@ export type Role = "game" | "controller";
 export type HelloMsg = { t: "hello"; role: Role };
 export type InputMsg = { t: "input"; steer: number; brake: boolean; nitro: boolean; seq: number };
 export type CalibrateMsg = { t: "calibrate" };
-export type HapticKind = "comboUp" | "comboEnd" | "reset";
+export type HapticKind = "comboUp" | "comboEnd" | "reset" | "drift";
 export type HapticMsg = { t: "haptic"; kind: HapticKind };
 export type StatusMsg = { t: "status"; score: number; combo: number; multiplier: number };
 export type PeerMsg = { t: "peer"; role: Role; connected: boolean };
@@ -13,7 +13,7 @@ export type Message = HelloMsg | InputMsg | CalibrateMsg | HapticMsg | StatusMsg
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
 const isRole = (v: unknown): v is Role => v === "game" || v === "controller";
-const isHaptic = (v: unknown): v is HapticKind => v === "comboUp" || v === "comboEnd" || v === "reset";
+const isHaptic = (v: unknown): v is HapticKind => v === "comboUp" || v === "comboEnd" || v === "reset" || v === "drift";
 
 export function parseMessage(raw: string): Message | null {
   let o: any;

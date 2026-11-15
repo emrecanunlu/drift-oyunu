@@ -126,7 +126,7 @@ drift-oyunu/
 - Nitro: basılı tutuldukça seyir hızının ~%30 üstüne çıkar (kullanıcı isteğiyle %40 → 210 km/s). Sınırsız (stres
   atma oyunu, kaynak yönetimi yok); kamera FOV'u artar.
 - Ekranda: bağlantı durumu, küçük bir direksiyon göstergesi, skor/kombo.
-- Titreşim: `comboUp` → hafif, `comboEnd` → orta, `reset` → ağır.
+- Titreşim: `comboUp` → hafif, `comboEnd` → orta, `reset` → ağır; drift boyunca ~8 Hz yumuşak titreşim (`drift`).
 
 ### Araba fiziği (arcade)
 
@@ -146,7 +146,7 @@ drift-oyunu/
 - Eğrilik, tohumlu (seed) gürültü ile üretilir; eğrilik üst sınırlı tutulur ki
   **keskin ve ani virajlar olmasın**. Akıcı, geniş virajlar ve ara sıra uzun
   düzlükler karışımı. S virajları drift kombosunu teşvik eder.
-- Yol geniş (~14 m), kenarlarda alçak bariyer/çizgi yok; yolun dışı düz arazi.
+- Yol geniş (~14 m; kullanıcı isteğiyle hız artınca 22 m), kenarlarda alçak bariyer/çizgi yok; yolun dışı düz arazi.
 - Önde ~600 m hazır tutulur; geride ~150 m'den eski parçalar silinir (bellek
   sabit kalır). Yol kendi üzerinden geçmeyecek şekilde yön sapması sınırlanır
   (zamanla genel bir ana yön etrafında kıvrılır).

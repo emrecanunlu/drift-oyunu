@@ -85,3 +85,9 @@ describe("Road pacing", () => {
     expect(straight / all.length).toBeLessThan(0.35);
   });
 });
+
+describe("Road width", () => {
+  it("is 22 m wide for high-speed drifting", () => {
+    expect(new Road(1).halfWidth).toBe(11);
+  });
+});

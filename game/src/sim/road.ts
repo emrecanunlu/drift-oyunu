@@ -15,7 +15,7 @@ export type RoadPoint = { s: number; x: number; z: number; heading: number };
 export type Nearest = { point: RoadPoint; distance: number; tangentX: number; tangentZ: number };
 
 export class Road {
-  readonly halfWidth = 7;
+  readonly halfWidth = 11;
   points: RoadPoint[] = [];
   private rand: () => number;
   private k = 0;

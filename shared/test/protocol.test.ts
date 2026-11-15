@@ -24,6 +24,7 @@ describe("parseMessage", () => {
       { t: "input", steer: -0.25, brake: true, nitro: false, seq: 9 },
       { t: "calibrate" },
       { t: "haptic", kind: "comboUp" },
+      { t: "haptic", kind: "drift" },
       { t: "status", score: 10, combo: 5, multiplier: 2 },
       { t: "peer", role: "controller", connected: true },
     ];

@@ -11,6 +11,7 @@ import { Road, BEHIND } from "./sim/road";
 import { createCar, stepCar, speedOf, slipAngle, type CarInput } from "./sim/car";
 import { ScoreSystem } from "./sim/score";
 import { Recovery } from "./sim/recovery";
+import { DriftBuzz } from "./sim/driftBuzz";
 
 const SIM_DT = 1 / 60;
 const BEST_KEY = "drift.best";
@@ -44,6 +45,7 @@ async function boot() {
   const hud = new Hud();
   const score = new ScoreSystem(Number(localStorage.getItem(BEST_KEY)) || 0);
   const recovery = new Recovery();
+  const buzz = new DriftBuzz();
 
   let car = createCar(0, 4, 0, 0);
   let started = false;
@@ -54,7 +56,7 @@ async function boot() {
   let smokeTick = 0;
   let current: CarInput = { steer: 0, brake: false, nitro: false };
 
-  const haptic = (kind: "comboUp" | "comboEnd" | "reset") => conn.send({ t: "haptic", kind });
+  const haptic = (kind: "comboUp" | "comboEnd" | "reset" | "drift") => conn.send({ t: "haptic", kind });
 
   function simStep(now: number) {
     let stale = false;
@@ -88,6 +90,8 @@ async function boot() {
         if (e === "comboEnd") localStorage.setItem(BEST_KEY, String(score.best));
       }
     }
+
+    if (buzz.update(SIM_DT, car.drifting && !recovery.active)) haptic("drift");
 
     const wheels = rearWheels(car);
     skids.update(car.drifting && !recovery.active ? wheels : [null, null]);

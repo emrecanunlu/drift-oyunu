@@ -13,6 +13,7 @@ const HAPTIC: Record<HapticKind, Haptics.ImpactFeedbackStyle> = {
   comboUp: Haptics.ImpactFeedbackStyle.Light,
   comboEnd: Haptics.ImpactFeedbackStyle.Medium,
   reset: Haptics.ImpactFeedbackStyle.Heavy,
+  drift: Haptics.ImpactFeedbackStyle.Soft,
 };
 
 export function DriveScreen({ url, onBack }: { url: string; onBack: () => void }) {
