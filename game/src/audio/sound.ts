@@ -345,6 +345,42 @@ export class Sound {
     }
   }
 
+  private sirenOscs: OscillatorNode[] = [];
+  private sirenGain: GainNode | null = null;
+
+  /** Police siren ("wail"): level 0..1 from distance, doppler = pitch ratio from closing speed. */
+  siren(level: number, doppler: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (!this.sirenGain) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = 1300;
+      bp.Q.value = 0.9;
+      const shaper = ctx.createWaveShaper();
+      const curve = new Float32Array(512);
+      for (let i = 0; i < 512; i++) curve[i] = Math.tanh((i / 256 - 1) * 3);
+      shaper.curve = curve;
+      this.sirenGain = ctx.createGain();
+      this.sirenGain.gain.value = 0;
+      for (const [type, det] of [["sawtooth", 0], ["square", 6]] as [OscillatorType, number][]) {
+        const o = ctx.createOscillator();
+        o.type = type;
+        o.detune.value = det;
+        o.connect(shaper);
+        o.start();
+        this.sirenOscs.push(o);
+      }
+      shaper.connect(bp).connect(this.sirenGain).connect(this.master);
+    }
+    const t = ctx.currentTime;
+    // Wail: smooth rise and fall over ~3.6 s between ~650 and ~1350 Hz.
+    const sweep = 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / 3.6);
+    const f = (650 + 700 * sweep) * doppler;
+    for (const o of this.sirenOscs) o.frequency.setTargetAtTime(f, t, 0.02);
+    this.sirenGain.gain.setTargetAtTime(level * level * 0.11, t, 0.1);
+  }
+
   private schedule(): void {
     const ctx = this.ctx!;
     while (this.nextNote < ctx.currentTime + LOOKAHEAD) {

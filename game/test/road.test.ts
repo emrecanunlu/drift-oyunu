@@ -102,3 +102,21 @@ describe("Road style", () => {
     }
   });
 });
+
+describe("Road.pointAt", () => {
+  it("interpolates a point at a given distance", () => {
+    const r = new Road(3);
+    r.ensureAhead(0);
+    const p = r.pointAt(101);
+    expect(p).not.toBeNull();
+    expect(p!.s).toBeCloseTo(101);
+    const a = r.points[50], b = r.points[51];
+    expect(p!.x).toBeCloseTo((a.x + b.x) / 2, 3);
+  });
+  it("returns null outside the generated range", () => {
+    const r = new Road(3);
+    r.ensureAhead(0);
+    expect(r.pointAt(-5)).toBeNull();
+    expect(r.pointAt(1e6)).toBeNull();
+  });
+});

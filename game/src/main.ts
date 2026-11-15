@@ -19,6 +19,7 @@ import { Recovery } from "./sim/recovery";
 import { DriftBuzz } from "./sim/driftBuzz";
 import { Crowd } from "./sim/crowd";
 import { Exhaust } from "./sim/exhaust";
+import { Police } from "./sim/police";
 import { TUNING, EXTREME } from "./sim/tuning";
 import { mulberry32 } from "./sim/rng";
 import { engineState } from "./audio/params";
@@ -83,6 +84,15 @@ async function boot() {
     },
   );
   const exhaust = new Exhaust();
+  const police = new Police();
+  (window as unknown as { __police: Police }).__police = police; // debug handle
+  const policeCar = new CarModel({ paint: 0x15151c, police: true });
+  policeCar.root.visible = false;
+  policeCar.setLights(1);
+  world.scene.add(policeCar.root);
+  const policeFx = document.getElementById("police")!;
+  let prevPoliceDist = police.distance;
+  let policeLateral = 0;
 
   const sound = new Sound();
   const soundBtn = document.getElementById("sound")!;
@@ -151,6 +161,7 @@ async function boot() {
       combo.lost();
       score.cancelCombo();
       sound.crash();
+      police.alert();
       chase.shake(0.6 + 0.15 * hits.length);
       haptic("reset");
     }
@@ -230,6 +241,30 @@ async function boot() {
         carView.backfire();
       }
     }
+
+    // Police: drive along the road behind the player, flash, siren with doppler.
+    police.update(dt);
+    const pp = police.state === "off" ? null : road.pointAt(carS - police.distance);
+    policeCar.root.visible = pp !== null;
+    if (pp) {
+      const near = road.nearest(car.x, car.z);
+      const side = (car.x - near.point.x) * Math.cos(near.point.heading) - (car.z - near.point.z) * Math.sin(near.point.heading);
+      const beside = side + (side > 0 ? -4.5 : 4.5); // alongside, not on top of the player
+      policeLateral += (Math.max(-9, Math.min(9, beside)) - policeLateral) * Math.min(1, 2 * dt);
+      const nx = Math.cos(pp.heading), nz = -Math.sin(pp.heading);
+      const pc = createCar(pp.x + nx * policeLateral, pp.z + nz * policeLateral, pp.heading, spd);
+      policeCar.update(pc, { steer: 0, brake: false, nitro: false }, dt);
+      policeCar.flashBar(now / 1000, true);
+    }
+    const closing = (prevPoliceDist - police.distance) / Math.max(dt, 1e-3);
+    prevPoliceDist = police.distance;
+    sound.siren(police.sirenLevel, 343 / (343 - Math.max(-60, Math.min(60, closing))));
+    const lvl = police.sirenLevel;
+    const blue = Math.floor(now / 250) % 2 === 0;
+    policeFx.style.opacity = (lvl * 0.8).toFixed(2);
+    policeFx.style.boxShadow = blue
+      ? "inset 140px 0 120px -60px #2a5aff, inset -40px 0 80px -60px #ff1a2a"
+      : "inset -140px 0 120px -60px #ff1a2a, inset 40px 0 80px -60px #2a5aff";
 
     // Crowd: animate, and roar louder the more cheering people are close by.
     crowdView.update(dt);

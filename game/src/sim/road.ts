@@ -84,6 +84,16 @@ export class Road {
     return n;
   }
 
+  /** Interpolated centre-line point at distance s, or null if not generated (or trimmed). */
+  pointAt(s: number): RoadPoint | null {
+    const pts = this.points;
+    if (!pts.length || s < pts[0].s || s > pts[pts.length - 1].s) return null;
+    const i = Math.min(pts.length - 2, Math.floor((s - pts[0].s) / STEP));
+    const a = pts[i], b = pts[i + 1];
+    const t = (s - a.s) / STEP;
+    return { s, x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, heading: a.heading + (b.heading - a.heading) * t };
+  }
+
   nearest(x: number, z: number): Nearest {
     const pts = this.points;
     const d2 = (i: number) => (pts[i].x - x) ** 2 + (pts[i].z - z) ** 2;

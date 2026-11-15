@@ -4,6 +4,7 @@ import { speedOf, type CarState } from "./car";
 export const HIT_RADIUS = 1.7;
 const GRAVITY = 22;
 const PANIC_RADIUS = 12;
+const SLIDE_FRICTION = 9;
 
 export type Spectator = {
   x: number; y: number; z: number;
@@ -62,36 +63,19 @@ export class Crowd {
     const speed = speedOf(car);
     for (const p of this.people) {
       if (p.state === "flying") {
-        p.vy -= GRAVITY * dt;
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.z += p.vz * dt;
-        p.spinX += p.wx * dt;
-        p.spinZ += p.wz * dt;
-        if (p.y <= 0 && p.vy < 0) {
-          p.y = 0;
-          if (Math.abs(p.vy) > 6) {
-            // One bounce, losing most energy.
-            p.vy = -p.vy * 0.3;
-            p.vx *= 0.5;
-            p.vz *= 0.5;
-          } else {
-            p.state = "down";
-            p.vx = p.vy = p.vz = 0;
-            p.spinX = Math.PI / 2;
-          }
-        }
+        this.fly(p, dt);
         continue;
       }
       if (p.state === "down" || speed < 5) continue;
       if (Math.hypot(p.x - car.x, p.z - car.z) > HIT_RADIUS) continue;
-      // Launch along the car's travel, up, with a tumble.
+      // Thrown forward at roughly the car's speed, fairly low, tumbling end over end.
       p.state = "flying";
-      p.vx = car.vx * 0.75 + (p.x - car.x) * 3;
-      p.vz = car.vz * 0.75 + (p.z - car.z) * 3;
-      p.vy = 7 + speed * 0.25;
-      p.wx = 8 + p.seed * 6;
-      p.wz = (p.seed - 0.5) * 10;
+      const k = 0.95 + p.seed * 0.15;
+      p.vx = car.vx * k + (p.x - car.x) * 2;
+      p.vz = car.vz * k + (p.z - car.z) * 2;
+      p.vy = 2.5 + speed * 0.05;
+      p.wx = 6 + speed * 0.12;
+      p.wz = (p.seed - 0.5) * 6;
       hits.push(p);
     }
     for (const h of hits) {
@@ -100,6 +84,43 @@ export class Crowd {
       }
     }
     return hits;
+  }
+
+  /** Airborne arcs, ground impacts that knock off speed, then a frictional slide to rest. */
+  private fly(p: Spectator, dt: number) {
+    const horiz = Math.hypot(p.vx, p.vz);
+    if (p.y > 0 || p.vy > 0) {
+      p.vy -= GRAVITY * dt;
+      p.y += p.vy * dt;
+    }
+    p.x += p.vx * dt;
+    p.z += p.vz * dt;
+    p.spinX += p.wx * dt;
+    p.spinZ += p.wz * dt;
+    if (p.y <= 0 && p.vy <= 0) {
+      p.y = 0;
+      if (Math.abs(p.vy) > 1.5 && horiz > 4) {
+        // Impact: lose energy, small tumbling hop.
+        p.vy = Math.abs(p.vy) * 0.3 + horiz * 0.04;
+        p.vx *= 0.7;
+        p.vz *= 0.7;
+        p.wx *= 0.7;
+      } else {
+        // Sliding/rolling on the ground.
+        p.vy = 0;
+        const slowed = Math.max(0, horiz - SLIDE_FRICTION * dt);
+        const f = horiz > 0 ? slowed / horiz : 0;
+        p.vx *= f;
+        p.vz *= f;
+        p.wx = slowed * 0.6;
+        if (slowed < 0.3) {
+          p.state = "down";
+          p.vx = p.vz = 0;
+          p.spinX = Math.PI / 2;
+          p.spinZ = 0;
+        }
+      }
+    }
   }
 
   /** Drops everyone whose chunk lies before `beforeS`. */

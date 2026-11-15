@@ -47,8 +47,8 @@ export class CarModel {
   private pitch = 0;
   private prevSpeed = 0;
 
-  constructor() {
-    const paint = new THREE.MeshStandardMaterial({ color: 0xff4a3a, metalness: 0.35, roughness: 0.35, flatShading: true });
+  constructor(opts: { paint?: number; police?: boolean } = {}) {
+    const paint = new THREE.MeshStandardMaterial({ color: opts.paint ?? 0xff4a3a, metalness: 0.35, roughness: 0.35, flatShading: true });
     const glass = new THREE.MeshStandardMaterial({ color: 0x141c2c, metalness: 0.6, roughness: 0.15 });
     const trim = new THREE.MeshStandardMaterial({ color: 0x18161c, roughness: 0.8 });
     const tire = new THREE.MeshStandardMaterial({ color: 0x111014, roughness: 0.95 });
@@ -90,6 +90,7 @@ export class CarModel {
     const tails = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.09, 0.05), this.tailMat);
     tails.position.set(0, 0.76, -2.2);
     this.body.add(lower, cabin, roof, splitter, skirts, wing, ...posts, ...heads, tails);
+    if (opts.police) this.addLightBar();
     this.root.add(this.body);
     this.addExhaust(trim);
 
@@ -161,6 +162,44 @@ export class CarModel {
     this.flameLight = new THREE.PointLight(0xff7a2a, 0, 8, 1.5);
     this.flameLight.position.set(0, 0.5, -2.8);
     this.body.add(this.flameLight);
+  }
+
+  private bar: { red: THREE.MeshBasicMaterial; blue: THREE.MeshBasicMaterial; lr: THREE.PointLight; lb: THREE.PointLight } | null = null;
+
+  /** Police: white doors and a red/blue light bar on the roof. */
+  private addLightBar() {
+    const white = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.4 });
+    for (const x of [-0.97, 0.97]) {
+      const door = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 1.7), white);
+      door.position.set(x, 0.62, 0.1);
+      this.body.add(door);
+    }
+    const red = new THREE.MeshBasicMaterial({ color: 0x400008 });
+    const blue = new THREE.MeshBasicMaterial({ color: 0x000a40 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+    base.position.set(0, 1.44, -0.2);
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.26), red);
+    r.position.set(-0.3, 1.53, -0.2);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.26), blue);
+    b.position.set(0.3, 1.53, -0.2);
+    const lr = new THREE.PointLight(0xff1a2a, 0, 25, 1.4);
+    lr.position.set(-0.4, 1.8, -0.2);
+    const lb = new THREE.PointLight(0x2a5aff, 0, 25, 1.4);
+    lb.position.set(0.4, 1.8, -0.2);
+    this.body.add(base, r, b, lr, lb);
+    this.bar = { red, blue, lr, lb };
+  }
+
+  /** Alternate the light bar; t in seconds. */
+  flashBar(t: number, on: boolean): void {
+    if (!this.bar) return;
+    const phase = Math.floor(t * 6) % 4; // red, red, blue, blue with quick double-flash feel
+    const redOn = on && (phase === 0 || phase === 1) && Math.floor(t * 24) % 2 === 0;
+    const blueOn = on && (phase === 2 || phase === 3) && Math.floor(t * 24) % 2 === 0;
+    this.bar.red.color.setHex(redOn ? 0xff2a3a : 0x400008);
+    this.bar.blue.color.setHex(blueOn ? 0x3a6aff : 0x000a40);
+    this.bar.lr.intensity = redOn ? 40 : 0;
+    this.bar.lb.intensity = blueOn ? 40 : 0;
   }
 
   /** One exhaust pop: a short burst of flame. */
