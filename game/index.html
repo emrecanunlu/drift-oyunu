@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drift</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1026; font-family: system-ui, sans-serif; color: #fff; }
+      #app canvas { display: block; }
+      #pairing { position: fixed; left: 24px; bottom: 24px; display: none; flex-direction: column; align-items: center; gap: 6px;
+        background: rgba(0,0,0,.55); padding: 14px; border-radius: 12px; font-size: 14px; }
+      #pairing img { border-radius: 6px; }
+      #pairing code { opacity: .7; font-size: 12px; }
+      #hud { position: fixed; right: 28px; top: 22px; text-align: right; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+      #hud .total { font-size: 34px; font-weight: 700; }
+      #hud .best { font-size: 13px; opacity: .7; }
+      #hud .combo { margin-top: 8px; font-size: 22px; color: #ffd27a; transition: opacity .2s; }
+      #hud .mult { font-size: 28px; font-weight: 800; color: #ff8a5c; margin-left: 6px; }
+      #hud .speed { margin-top: 10px; font-size: 14px; opacity: .7; }
+      #stale { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; font-size: 26px;
+        text-shadow: 0 2px 8px rgba(0,0,0,.6); pointer-events: none; }
+      #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud"></div>
+    <div id="stale">Kontrolcü bağlantısı koptu</div>
+    <div id="flash"></div>
+    <div id="pairing"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

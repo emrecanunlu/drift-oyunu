@@ -1,0 +1,9 @@
+{
+  "name": "@drift/game",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "tsc --noEmit && vite build" },
+  "dependencies": { "@drift/shared": "*", "three": "^0.170.0", "qrcode": "^1.5.4" },
+  "devDependencies": { "vite": "^6.0.0", "@types/three": "^0.170.0", "@types/qrcode": "^1.5.5" }
+}
