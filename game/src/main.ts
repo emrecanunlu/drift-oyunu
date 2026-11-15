@@ -103,6 +103,7 @@ async function boot() {
   const policeViews = new Map<PoliceUnit, CarModel>();
   const policeFx = document.getElementById("police")!;
   let prevPoliceDist = Infinity;
+  let closingSmooth = 0;
 
   const sound = new Sound();
   const soundBtn = document.getElementById("sound")!;
@@ -312,7 +313,8 @@ async function boot() {
     const closing = pd === Infinity || prevPoliceDist === Infinity ? 0 : (prevPoliceDist - pd) / Math.max(dt, 1e-3);
     prevPoliceDist = pd;
     const lvl = police.sirenLevel(car);
-    sound.siren(lvl, 343 / (343 - Math.max(-60, Math.min(60, closing))));
+    closingSmooth += (Math.max(-40, Math.min(40, closing)) - closingSmooth) * Math.min(1, 1.5 * dt);
+    sound.siren(lvl, 343 / (343 - closingSmooth));
     const blue = Math.floor(now / 250) % 2 === 0;
     policeFx.style.opacity = (lvl * 0.8).toFixed(2);
     policeFx.style.boxShadow = blue

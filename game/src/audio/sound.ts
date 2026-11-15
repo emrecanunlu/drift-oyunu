@@ -230,8 +230,6 @@ export class Sound {
   }
 
   private blipUntil = 0;
-  private roar: GainNode | null = null;
-  private nextWoo = 0;
 
   /** Rev-matching throttle blip on a downshift. */
   blip(): void {
@@ -312,77 +310,224 @@ export class Sound {
     }
   }
 
-  /** Crowd roar level 0..1 (spectators cheering near the car); occasional "woo!". */
+  // ---- Crowd: formant-based voices (babble, shouts), claps and whistles ----
+  private babble: { f1: BiquadFilterNode; f2: BiquadFilterNode; amp: GainNode; next: number }[] = [];
+  private crowdBus: GainNode | null = null;
+  private nextShout = 0;
+  private nextClap = 0;
+  private nextWhistle = 0;
+
+  /** Vowel formants (F1, F2, F3) in Hz. */
+  private static VOWELS: [number, number, number][] = [
+    [800, 1200, 2500], // a
+    [500, 1800, 2500], // e
+    [500, 900, 2400], // o
+    [320, 2300, 3000], // i
+    [350, 800, 2300], // u
+  ];
+
+  /** Crowd level 0..1 (cheering spectators near the car). */
   crowd(level: number): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    if (!this.roar) {
-      const src = ctx.createBufferSource();
-      src.buffer = this.noise;
-      src.loop = true;
-      const bp = ctx.createBiquadFilter();
-      bp.type = "bandpass";
-      bp.frequency.value = 900;
-      bp.Q.value = 0.6;
-      this.roar = ctx.createGain();
-      this.roar.gain.value = 0;
-      src.connect(bp).connect(this.roar).connect(this.master);
-      src.start();
-    }
     const t = ctx.currentTime;
-    this.roar.gain.setTargetAtTime(level * (0.07 + Math.random() * 0.05), t, 0.08);
-    if (level > 0.2 && t > this.nextWoo) {
-      this.nextWoo = t + 0.25 + Math.random() * 0.6;
-      const o = ctx.createOscillator();
-      o.type = "triangle";
-      const f = 500 + Math.random() * 400;
-      o.frequency.setValueAtTime(f, t);
-      o.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.25);
-      o.frequency.exponentialRampToValueAtTime(f * 1.3, t + 0.5);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.05 * level, t + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
-      o.connect(g).connect(this.master);
-      o.start(t);
-      o.stop(t + 0.6);
+    if (!this.crowdBus) {
+      this.crowdBus = ctx.createGain();
+      this.crowdBus.gain.value = 0;
+      const warm = ctx.createBiquadFilter();
+      warm.type = "lowpass";
+      warm.frequency.value = 4500;
+      this.crowdBus.connect(warm).connect(this.master);
+      // Four "clusters" of people talking/cheering: noise through moving vowel formants.
+      for (let i = 0; i < 4; i++) {
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        src.loop = true;
+        const f1 = ctx.createBiquadFilter();
+        f1.type = "bandpass";
+        f1.Q.value = 7;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = "bandpass";
+        f2.Q.value = 9;
+        const amp = ctx.createGain();
+        amp.gain.value = 0;
+        const mix = ctx.createGain();
+        mix.gain.value = 3;
+        src.connect(f1).connect(mix);
+        src.connect(f2).connect(mix);
+        mix.connect(amp).connect(this.crowdBus);
+        src.start(0, Math.random() * 2);
+        this.babble.push({ f1, f2, amp, next: 0 });
+      }
+    }
+    this.crowdBus.gain.setTargetAtTime(level * 0.5, t, 0.25);
+    if (level < 0.02) return;
+
+    // Babble: each cluster changes vowel and loudness at a syllable-ish rate.
+    for (const b of this.babble) {
+      if (t < b.next) continue;
+      b.next = t + 0.12 + Math.random() * 0.25;
+      const [a1, a2] = Sound.VOWELS[Math.floor(Math.random() * Sound.VOWELS.length)];
+      const k = 0.85 + Math.random() * 0.3;
+      b.f1.frequency.setTargetAtTime(a1 * k, t, 0.05);
+      b.f2.frequency.setTargetAtTime(a2 * k, t, 0.05);
+      b.amp.gain.setTargetAtTime(0.08 + Math.random() * 0.14, t, 0.04);
+    }
+
+    // Shouts: a real voiced "hey!" / "woo!" from someone in the crowd.
+    if (t > this.nextShout) {
+      this.nextShout = t + (0.35 + Math.random() * 1.1) / (0.4 + level);
+      this.shout(Math.random() < 0.5 ? "hey" : "woo", level);
+    }
+    // Claps: more people → denser clapping.
+    if (t > this.nextClap) {
+      this.nextClap = t + (0.03 + Math.random() * 0.12) / (0.3 + level);
+      this.clap(level);
+    }
+    if (level > 0.4 && t > this.nextWhistle) {
+      this.nextWhistle = t + 2 + Math.random() * 4;
+      this.whistle();
     }
   }
+
+  /** A voiced shout: sawtooth "vocal folds" with vibrato, through three vowel formants. */
+  private shout(kind: "hey" | "woo", level: number) {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + Math.random() * 0.05;
+    const male = Math.random() < 0.55;
+    const f0 = (male ? 120 : 210) * (0.9 + Math.random() * 0.35);
+    const dur = kind === "hey" ? 0.28 + Math.random() * 0.12 : 0.55 + Math.random() * 0.3;
+    const glottis = ctx.createOscillator();
+    glottis.type = "sawtooth";
+    if (kind === "hey") {
+      glottis.frequency.setValueAtTime(f0 * 1.35, t);
+      glottis.frequency.exponentialRampToValueAtTime(f0 * 0.9, t + dur);
+    } else {
+      glottis.frequency.setValueAtTime(f0, t);
+      glottis.frequency.exponentialRampToValueAtTime(f0 * 1.9, t + dur * 0.55);
+      glottis.frequency.exponentialRampToValueAtTime(f0 * 1.5, t + dur);
+    }
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 5 + Math.random() * 2;
+    const vibDepth = ctx.createGain();
+    vibDepth.gain.value = f0 * 0.03;
+    vib.connect(vibDepth).connect(glottis.frequency);
+    // "hey" = e → i, "woo" = u → o
+    const [from, to] = kind === "hey" ? [Sound.VOWELS[1], Sound.VOWELS[3]] : [Sound.VOWELS[4], Sound.VOWELS[2]];
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.06 + level * 0.06, t + 0.04);
+    out.gain.setValueAtTime(0.06 + level * 0.06, t + dur * 0.7);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    // Breath noise mixed in for realism.
+    const breath = ctx.createBufferSource();
+    breath.buffer = this.noise;
+    const bg = ctx.createGain();
+    bg.gain.value = 0.15;
+    breath.connect(bg);
+    from.forEach((f, i) => {
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.Q.value = [6, 9, 11][i];
+      bp.frequency.setValueAtTime(f, t);
+      bp.frequency.linearRampToValueAtTime(to[i], t + dur * 0.8);
+      const g = ctx.createGain();
+      g.gain.value = [1, 0.6, 0.25][i] * 4;
+      glottis.connect(bp);
+      bg.connect(bp);
+      bp.connect(g).connect(out);
+    });
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = Math.random() * 1.6 - 0.8;
+    out.connect(pan).connect(this.crowdBus!);
+    glottis.start(t);
+    vib.start(t);
+    breath.start(t, Math.random());
+    glottis.stop(t + dur + 0.05);
+    vib.stop(t + dur + 0.05);
+    breath.stop(t + dur + 0.05);
+  }
+
+  private clap(level: number) {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1100 + Math.random() * 1400;
+    bp.Q.value = 1.5;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.05 + level * 0.06, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03 + Math.random() * 0.03);
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = Math.random() * 2 - 1;
+    src.connect(bp).connect(g).connect(pan).connect(this.crowdBus!);
+    src.start(t, Math.random() * 1.9);
+    src.stop(t + 0.08);
+  }
+
+  private whistle() {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const f = 1900 + Math.random() * 700;
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * 1.35, t + 0.25);
+    o.frequency.exponentialRampToValueAtTime(f * 0.9, t + 0.7);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.035, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+    o.connect(g).connect(this.crowdBus!);
+    o.start(t);
+    o.stop(t + 0.8);
+  }
+
 
   private sirenOscs: OscillatorNode[] = [];
   private sirenGain: GainNode | null = null;
 
-  /** Police siren ("wail"): level 0..1 from distance, doppler = pitch ratio from closing speed. */
+  /**
+   * Police siren ("wail"). The rise/fall is a slow LFO inside the audio graph, so it is perfectly
+   * smooth regardless of frame rate; doppler is applied as detune. level 0..1, doppler = pitch ratio.
+   */
   siren(level: number, doppler: number): void {
     const ctx = this.ctx;
     if (!ctx) return;
     if (!this.sirenGain) {
-      const bp = ctx.createBiquadFilter();
-      bp.type = "bandpass";
-      bp.frequency.value = 1300;
-      bp.Q.value = 0.9;
-      const shaper = ctx.createWaveShaper();
-      const curve = new Float32Array(512);
-      for (let i = 0; i < 512; i++) curve[i] = Math.tanh((i / 256 - 1) * 3);
-      shaper.curve = curve;
+      const lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = 1 / 3.6; // one wail every 3.6 s
+      const depth = ctx.createGain();
+      depth.gain.value = 330; // ±330 Hz around the centre
+      lfo.connect(depth);
+      const tone = ctx.createGain();
+      tone.gain.value = 0.5;
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 3200;
       this.sirenGain = ctx.createGain();
       this.sirenGain.gain.value = 0;
-      for (const [type, det] of [["sawtooth", 0], ["square", 6]] as [OscillatorType, number][]) {
+      for (const [type, amp] of [["triangle", 1], ["square", 0.18]] as [OscillatorType, number][]) {
         const o = ctx.createOscillator();
         o.type = type;
-        o.detune.value = det;
-        o.connect(shaper);
+        o.frequency.value = 980;
+        depth.connect(o.frequency);
+        const g = ctx.createGain();
+        g.gain.value = amp;
+        o.connect(g).connect(tone);
         o.start();
         this.sirenOscs.push(o);
       }
-      shaper.connect(bp).connect(this.sirenGain).connect(this.master);
+      tone.connect(lp).connect(this.sirenGain).connect(this.master);
+      lfo.start();
     }
     const t = ctx.currentTime;
-    // Wail: smooth rise and fall over ~3.6 s between ~650 and ~1350 Hz.
-    const sweep = 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / 3.6);
-    const f = (650 + 700 * sweep) * doppler;
-    for (const o of this.sirenOscs) o.frequency.setTargetAtTime(f, t, 0.02);
-    this.sirenGain.gain.setTargetAtTime(level * level * 0.11, t, 0.1);
+    const cents = 1200 * Math.log2(Math.max(0.92, Math.min(1.08, doppler)));
+    for (const o of this.sirenOscs) o.detune.setTargetAtTime(cents, t, 0.25);
+    this.sirenGain.gain.setTargetAtTime(level * level * 0.09, t, 0.3);
   }
 
   private layers = musicLayers(0);
