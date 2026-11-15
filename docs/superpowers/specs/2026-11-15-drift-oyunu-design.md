@@ -208,3 +208,8 @@ Neden: 5 dk sonra oyun içine çekmiyor — manzara tekdüze, ses yok. Kullanıc
 - Kombo artışı: çarpanla yükselen kısa "ding"; yoldan çıkınca "vuuş".
 - Müzik: sakin, döngüsel synthwave (pad + bas + hafif davul), düşük seviyede.
 - Tarayıcılar sesi ancak sayfaya tıklayınca/ tuşa basınca açar → köşede "Sesi aç" butonu; **M** tuşu sesi kapatır/açar.
+
+## Ek (2026-11-15): Hız, extreme mod, seyirciler, ara gaz
+- Normal seyir 170 km/s (nitro 238). Extreme mod (telefonda EXTREME, klavyede E): 230 km/s (nitro ~310), sert direksiyon, daha keskin yol, puan ×2.
+- Yol kenarında ortama göre giyinmiş tezahüratçı grupları; yakınlarından geçerken kalabalık sesi. Çarpınca çizgi film tarzı uçarlar, araba yavaşlar, kombo kaybolur, kamera sarsılır, yakındakiler panikler.
+- Vites küçültürken otomatik ara gaz; yük altında vites büyütürken ve yüksek devirde gazı kesince egzoz patlaması + alev.

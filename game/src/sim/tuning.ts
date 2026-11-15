@@ -1,8 +1,8 @@
 /** All feel constants. Tweak by playing. Units: m, s, rad. */
 export const TUNING = {
-  cruiseSpeed: 41.67, // 150 km/h
+  cruiseSpeed: 47.22, // 170 km/h
   minBrakeSpeed: 11.11, // ~40 km/h
-  nitroFactor: 1.4, // 210 km/h
+  nitroFactor: 1.4, // 238 km/h
   accel: 10,
   brakeDecel: 9,
   coastDecel: 4,
@@ -27,3 +27,14 @@ export const TUNING = {
   driftSpeedFactor: 0.9,
 };
 export type Tuning = typeof TUNING;
+
+/** Extreme mode: much faster, sharper steering. */
+export const EXTREME: Tuning = {
+  ...TUNING,
+  cruiseSpeed: 63.89, // 230 km/h
+  nitroFactor: 1.35, // ~310 km/h
+  accel: 16,
+  maxSteerRate: 2.5,
+  steerSpeedGain: 0.1,
+  yawResponse: 14,
+};

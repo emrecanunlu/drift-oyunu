@@ -158,7 +158,8 @@ export class Sound {
     if (!ctx) return;
     const t = ctx.currentTime;
     const e = engineState(speed, accelerating, nitro);
-    for (const [mult, o] of this.harmonics) o.frequency.setTargetAtTime(e.fireHz * mult, t, 0.06);
+    const hz = e.fireHz * (t < this.blipUntil ? 1.45 : 1); // throttle blip
+    for (const [mult, o] of this.harmonics) o.frequency.setTargetAtTime(hz * mult, t, t < this.blipUntil ? 0.03 : 0.06);
     this.rumble.frequency.setTargetAtTime(e.fireHz / 2, t, 0.06);
     this.engFilter.frequency.setTargetAtTime(e.cutoff, t, 0.12);
     const gain = running ? e.gain : 0;
@@ -222,6 +223,126 @@ export class Sound {
     src.connect(f).connect(g).connect(this.master);
     src.start(t);
     src.stop(t + 0.7);
+  }
+
+  private blipUntil = 0;
+  private roar: GainNode | null = null;
+  private nextWoo = 0;
+
+  /** Rev-matching throttle blip on a downshift. */
+  blip(): void {
+    if (this.ctx) this.blipUntil = this.ctx.currentTime + 0.18;
+  }
+
+  /** One exhaust backfire: sharp crack + low thump. */
+  pop(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 250 + Math.random() * 350;
+    bp.Q.value = 1.2;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.9, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07 + Math.random() * 0.05);
+    src.connect(bp).connect(g).connect(this.master);
+    src.start(t, Math.random());
+    src.stop(t + 0.15);
+    const o = ctx.createOscillator();
+    o.frequency.setValueAtTime(90, t);
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.exponentialRampToValueAtTime(0.5, t + 0.004);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+    o.connect(og).connect(this.master);
+    o.start(t);
+    o.stop(t + 0.12);
+  }
+
+  /** Hitting spectators: body thump, crunch and a short scream. */
+  crash(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const thump = ctx.createOscillator();
+    thump.frequency.setValueAtTime(110, t);
+    thump.frequency.exponentialRampToValueAtTime(35, t + 0.25);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.0001, t);
+    tg.gain.exponentialRampToValueAtTime(0.9, t + 0.005);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    thump.connect(tg).connect(this.master);
+    thump.start(t);
+    thump.stop(t + 0.35);
+    // Scream: a few detuned voices through a vowel-ish formant, gliding down.
+    const formant = ctx.createBiquadFilter();
+    formant.type = "bandpass";
+    formant.frequency.value = 1100;
+    formant.Q.value = 3;
+    const sg = ctx.createGain();
+    sg.gain.setValueAtTime(0.0001, t + 0.05);
+    sg.gain.exponentialRampToValueAtTime(0.35, t + 0.12);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    formant.connect(sg).connect(this.master);
+    for (let i = 0; i < 3; i++) {
+      const v = ctx.createOscillator();
+      v.type = "sawtooth";
+      const f0 = 520 + Math.random() * 260;
+      v.frequency.setValueAtTime(f0, t + 0.05);
+      v.frequency.exponentialRampToValueAtTime(f0 * 0.6, t + 0.9);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = 6 + Math.random() * 3;
+      const vd = ctx.createGain();
+      vd.gain.value = 18;
+      vib.connect(vd).connect(v.frequency);
+      v.connect(formant);
+      v.start(t + 0.05);
+      vib.start(t + 0.05);
+      v.stop(t + 0.95);
+      vib.stop(t + 0.95);
+    }
+  }
+
+  /** Crowd roar level 0..1 (spectators cheering near the car); occasional "woo!". */
+  crowd(level: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (!this.roar) {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = 900;
+      bp.Q.value = 0.6;
+      this.roar = ctx.createGain();
+      this.roar.gain.value = 0;
+      src.connect(bp).connect(this.roar).connect(this.master);
+      src.start();
+    }
+    const t = ctx.currentTime;
+    this.roar.gain.setTargetAtTime(level * (0.07 + Math.random() * 0.05), t, 0.08);
+    if (level > 0.2 && t > this.nextWoo) {
+      this.nextWoo = t + 0.25 + Math.random() * 0.6;
+      const o = ctx.createOscillator();
+      o.type = "triangle";
+      const f = 500 + Math.random() * 400;
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.25);
+      o.frequency.exponentialRampToValueAtTime(f * 1.3, t + 0.5);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.05 * level, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+      o.connect(g).connect(this.master);
+      o.start(t);
+      o.stop(t + 0.6);
+    }
   }
 
   private schedule(): void {

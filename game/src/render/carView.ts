@@ -3,6 +3,11 @@ import { speedOf, type CarState } from "../sim/car";
 import { TUNING } from "../sim/tuning";
 
 export class ChaseCamera {
+  private shakeAmt = 0;
+  /** Camera shake (metres of jitter, decays quickly). */
+  shake(amount: number): void {
+    this.shakeAmt = Math.max(this.shakeAmt, amount);
+  }
   private pos = new THREE.Vector3();
   private look = new THREE.Vector3();
   private init = false;
@@ -24,6 +29,11 @@ export class ChaseCamera {
     this.pos.lerp(wantPos, k);
     this.look.lerp(wantLook, k);
     this.cam.position.copy(this.pos);
+    if (this.shakeAmt > 0.01) {
+      this.cam.position.x += (Math.random() - 0.5) * this.shakeAmt;
+      this.cam.position.y += (Math.random() - 0.5) * this.shakeAmt;
+      this.shakeAmt *= Math.exp(-6 * dt);
+    }
     this.cam.lookAt(this.look);
     const fov = Math.min(88, 62 + Math.max(0, speed - TUNING.cruiseSpeed * 0.6) * 0.45 + (nitro ? 8 : 0));
     this.cam.fov += (fov - this.cam.fov) * Math.min(1, 3 * dt);

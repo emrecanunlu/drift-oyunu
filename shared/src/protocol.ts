@@ -4,11 +4,12 @@ export type Role = "game" | "controller";
 export type HelloMsg = { t: "hello"; role: Role };
 export type InputMsg = { t: "input"; steer: number; brake: boolean; nitro: boolean; seq: number };
 export type CalibrateMsg = { t: "calibrate" };
+export type ToggleModeMsg = { t: "toggleMode" };
 export type HapticKind = "comboUp" | "comboEnd" | "reset" | "drift";
 export type HapticMsg = { t: "haptic"; kind: HapticKind };
-export type StatusMsg = { t: "status"; score: number; combo: number; multiplier: number };
+export type StatusMsg = { t: "status"; score: number; combo: number; multiplier: number; extreme?: boolean };
 export type PeerMsg = { t: "peer"; role: Role; connected: boolean };
-export type Message = HelloMsg | InputMsg | CalibrateMsg | HapticMsg | StatusMsg | PeerMsg;
+export type Message = HelloMsg | InputMsg | CalibrateMsg | ToggleModeMsg | HapticMsg | StatusMsg | PeerMsg;
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
@@ -31,11 +32,14 @@ export function parseMessage(raw: string): Message | null {
       return { t: "input", steer: Math.max(-1, Math.min(1, o.steer)), brake: o.brake, nitro: o.nitro, seq: o.seq };
     case "calibrate":
       return { t: "calibrate" };
+    case "toggleMode":
+      return { t: "toggleMode" };
     case "haptic":
       return isHaptic(o.kind) ? { t: "haptic", kind: o.kind } : null;
     case "status":
       if (!isNum(o.score) || !isNum(o.combo) || !isNum(o.multiplier)) return null;
-      return { t: "status", score: o.score, combo: o.combo, multiplier: o.multiplier };
+      if (o.extreme !== undefined && !isBool(o.extreme)) return null;
+      return { t: "status", score: o.score, combo: o.combo, multiplier: o.multiplier, ...(o.extreme !== undefined && { extreme: o.extreme }) };
     case "peer":
       if (!isRole(o.role) || !isBool(o.connected)) return null;
       return { t: "peer", role: o.role, connected: o.connected };

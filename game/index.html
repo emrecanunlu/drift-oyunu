@@ -46,6 +46,8 @@
       #hud .total.pulse { animation: tpulse .4s; }
       @keyframes tpulse { 0% { transform: scale(1.35); color: #ffd27a; } 100% { transform: scale(1); } }
       #hud .total { transform-origin: right center; }
+      #extreme { position: fixed; right: 28px; top: 132px; display: none; padding: 6px 14px; border-radius: 8px; font-weight: 900;
+        letter-spacing: 3px; font-style: italic; background: linear-gradient(90deg,#ff2a3a,#ff8a2a); box-shadow: 0 0 18px #ff3a2a; }
       #biome { position: fixed; top: 42%; left: 0; right: 0; text-align: center; font-size: 44px; font-weight: 800;
         letter-spacing: 3px; text-shadow: 0 3px 14px rgba(0,0,0,.55); opacity: 0; transition: opacity .8s; pointer-events: none; }
       #sound { position: fixed; left: 24px; top: 20px; padding: 10px 16px; border: 0; border-radius: 10px; cursor: pointer;
@@ -60,6 +62,7 @@
     <div id="flash"></div>
     <div id="pairing"></div>
     <div id="biome"></div>
+    <div id="extreme">EXTREME</div>
     <div id="glow"></div>
     <div id="combo">
       <div class="label"></div>

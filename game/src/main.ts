@@ -17,6 +17,12 @@ import { createCar, stepCar, speedOf, slipAngle, type CarInput } from "./sim/car
 import { ScoreSystem } from "./sim/score";
 import { Recovery } from "./sim/recovery";
 import { DriftBuzz } from "./sim/driftBuzz";
+import { Crowd } from "./sim/crowd";
+import { Exhaust } from "./sim/exhaust";
+import { TUNING, EXTREME } from "./sim/tuning";
+import { mulberry32 } from "./sim/rng";
+import { engineState } from "./audio/params";
+import { CrowdView } from "./render/crowdView";
 
 const SIM_DT = 1 / 60;
 const BEST_KEY = "drift.best";
@@ -37,15 +43,46 @@ async function boot() {
       m.connected ? hidePairing() : showPairing(wsUrl);
     } else if (m.t === "input") input.apply(m, performance.now());
     else if (m.t === "calibrate") input.requestCalibrate();
+    else if (m.t === "toggleMode") toggleExtreme();
+  });
+
+  // Extreme mode: faster car, sharper upcoming road, double points.
+  let extreme = false;
+  const badge = document.getElementById("extreme")!;
+  function toggleExtreme() {
+    extreme = !extreme;
+    score.pointsScale = extreme ? 2 : 1;
+    badge.style.display = extreme ? "block" : "none";
+    hud.showBiome(extreme ? "EXTREME MOD" : "NORMAL MOD");
+  }
+  addEventListener("keydown", (e) => {
+    if (e.key === "e" || e.key === "E") toggleExtreme();
   });
 
   const world = createWorld(document.getElementById("app")!);
   const seed = (Math.random() * 2 ** 31) | 0;
-  const road = new Road(seed, (s) => biomeAt(s).a.road);
-  const roadMesh = new RoadMesh(world.scene, road.halfWidth, seed, (s) => {
-    const b = biomeAt(s);
-    return (b.t > 0.5 ? b.b : b.a).id;
+  const road = new Road(seed, (s) => {
+    const st = biomeAt(s).a.road;
+    return extreme ? { curvatureScale: Math.min(1, st.curvatureScale * 1.3), straightChance: st.straightChance * 0.6 } : st;
   });
+  const crowd = new Crowd(road.halfWidth);
+  const crowdView = new CrowdView(world.scene);
+  (window as unknown as { __crowd: Crowd }).__crowd = crowd; // debug handle
+  const roadMesh = new RoadMesh(
+    world.scene,
+    road.halfWidth,
+    seed,
+    (s) => {
+      const b = biomeAt(s);
+      return (b.t > 0.5 ? b.b : b.a).id;
+    },
+    (pts, kind) => {
+      if (pts[0].s < 150) return; // keep the start clear
+      const rand = mulberry32(seed ^ (Math.floor(pts[0].s) * 7919));
+      crowdView.add(crowd.spawnChunk(pts, rand, kind === "city" ? 1 : 0.7), kind);
+    },
+  );
+  const exhaust = new Exhaust();
 
   const sound = new Sound();
   const soundBtn = document.getElementById("sound")!;
@@ -104,7 +141,20 @@ async function boot() {
     if (!kb.active && !stale) usedController = true;
     hud.message(stale && usedController && !kb.active ? "Kontrolcü bağlantısı koptu" : null);
 
-    car = stepCar(car, current, SIM_DT);
+    car = stepCar(car, current, SIM_DT, extreme ? EXTREME : TUNING);
+
+    // Spectators: a hit launches them, slows the car hard and costs the combo.
+    const hits = crowd.update(SIM_DT, car);
+    if (hits.length) {
+      const k = Math.max(0.35, 0.7 - 0.1 * (hits.length - 1));
+      car = { ...car, vx: car.vx * k, vz: car.vz * k, drifting: false };
+      combo.lost();
+      score.cancelCombo();
+      sound.crash();
+      chase.shake(0.6 + 0.15 * hits.length);
+      haptic("reset");
+    }
+
     const rec = recovery.update(SIM_DT, car, road);
     if (rec.car !== car) chase.snap();
     car = rec.car;
@@ -139,6 +189,8 @@ async function boot() {
     roadMesh.addPoints(road.ensureAhead(s));
     road.trimBehind(s);
     roadMesh.trim(s - BEHIND);
+    crowd.trim(s - BEHIND - 50);
+    crowdView.sync(crowd.people);
   }
 
   function frame(now: number) {
@@ -168,13 +220,31 @@ async function boot() {
     prevSpeed = spd;
     sound.update(spd, accelerating, current.nitro, car.drifting && !recovery.active, slipAngle(car), started,
       surfaceAt(onRoad, (biome.t > 0.5 ? biome.b : biome.a).id));
+
+    // Exhaust: pops/flames on shifts and lift-off, throttle blip on downshifts.
+    if (started) {
+      const ex = exhaust.update(dt, engineState(spd, accelerating, current.nitro));
+      if (ex.blip) sound.blip();
+      for (let i = 0; i < ex.pops; i++) {
+        sound.pop();
+        carView.backfire();
+      }
+    }
+
+    // Crowd: animate, and roar louder the more cheering people are close by.
+    crowdView.update(dt);
+    let cheering = 0;
+    for (const p of crowd.people) {
+      if (p.state === "cheer" && Math.abs(p.x - car.x) < 45 && Math.abs(p.z - car.z) < 45) cheering++;
+    }
+    sound.crowd(Math.min(1, cheering / 12));
     setRecoveryFx(world.renderer.domElement, recovery.active ? recovery.progress : 0);
     combo.update(score.pending, score.multiplier, score.comboTimeLeft());
     hud.update(score.total, Math.max(score.best, score.total), score.pending, score.multiplier, speedOf(car) * 3.6);
 
     if (now - lastStatus > 200) {
       lastStatus = now;
-      conn.send({ t: "status", score: score.total, combo: Math.round(score.pending), multiplier: score.multiplier });
+      conn.send({ t: "status", score: score.total, combo: Math.round(score.pending), multiplier: score.multiplier, extreme });
     }
     world.renderer.render(world.scene, world.camera);
     requestAnimationFrame(frame);

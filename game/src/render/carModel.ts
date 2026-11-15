@@ -91,6 +91,7 @@ export class CarModel {
     tails.position.set(0, 0.76, -2.2);
     this.body.add(lower, cabin, roof, splitter, skirts, wing, ...posts, ...heads, tails);
     this.root.add(this.body);
+    this.addExhaust(trim);
 
     // Wheels.
     for (const [x, z] of [[-WHEEL_X, WHEEL_Z], [WHEEL_X, WHEEL_Z], [-WHEEL_X, -WHEEL_Z], [WHEEL_X, -WHEEL_Z]]) {
@@ -129,6 +130,60 @@ export class CarModel {
     this.root.add(pool);
   }
   private poolMat: THREE.MeshBasicMaterial;
+  private flames: THREE.Mesh[] = [];
+  private flameLight!: THREE.PointLight;
+  private flameLife = 0;
+
+  /** Exhaust pipes with flame cones; call once from the constructor. */
+  private addExhaust(trim: THREE.Material) {
+    const flameMat = new THREE.MeshBasicMaterial({
+      color: 0xff8a2a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const coreMat = new THREE.MeshBasicMaterial({
+      color: 0x9ad8ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const coneGeo = new THREE.ConeGeometry(0.16, 1, 7);
+    coneGeo.rotateX(-Math.PI / 2); // tip points backwards (-z)
+    coneGeo.translate(0, 0, -0.5);
+    for (const x of [-0.42, 0.42]) {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.25, 8), trim);
+      pipe.rotation.x = Math.PI / 2;
+      pipe.position.set(x, 0.36, -2.2);
+      const flame = new THREE.Mesh(coneGeo, flameMat);
+      flame.position.set(x, 0.36, -2.32);
+      const core = new THREE.Mesh(coneGeo, coreMat);
+      core.scale.set(0.5, 0.5, 0.45);
+      flame.add(core);
+      flame.visible = false;
+      this.body.add(pipe, flame);
+      this.flames.push(flame);
+    }
+    this.flameLight = new THREE.PointLight(0xff7a2a, 0, 8, 1.5);
+    this.flameLight.position.set(0, 0.5, -2.8);
+    this.body.add(this.flameLight);
+  }
+
+  /** One exhaust pop: a short burst of flame. */
+  backfire(): void {
+    this.flameLife = 0.09 + Math.random() * 0.06;
+    const len = 0.6 + Math.random() * 0.9;
+    for (const f of this.flames) {
+      f.visible = true;
+      f.scale.set(1 + Math.random() * 0.4, 1 + Math.random() * 0.4, len);
+    }
+    this.flameLight.intensity = 25;
+  }
+
+  private updateFlames(dt: number) {
+    if (this.flameLife <= 0) return;
+    this.flameLife -= dt;
+    const k = Math.max(0, this.flameLife / 0.12);
+    for (const f of this.flames) {
+      f.visible = this.flameLife > 0;
+      f.scale.z *= 0.85;
+    }
+    this.flameLight.intensity = 25 * k;
+  }
 
   /** 0 = off (daylight), 1 = full beams. */
   setLights(level: number): void {
@@ -155,6 +210,7 @@ export class CarModel {
     this.pitch += (THREE.MathUtils.clamp(-accel * 0.004, -0.05, 0.05) - this.pitch) * k;
     this.body.rotation.z = this.roll;
     this.body.rotation.x = this.pitch;
+    this.updateFlames(dt);
   }
 }
 

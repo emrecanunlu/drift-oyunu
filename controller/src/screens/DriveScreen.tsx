@@ -60,6 +60,12 @@ export function DriveScreen({ url, onBack }: { url: string; onBack: () => void }
           <Pressable style={styles.small} onPress={toggleInvert}>
             <Text style={styles.smallText}>Yönü çevir</Text>
           </Pressable>
+          <Pressable
+            style={[styles.small, status?.extreme && styles.extremeOn]}
+            onPress={() => send({ t: "toggleMode" })}
+          >
+            <Text style={styles.smallText}>EXTREME</Text>
+          </Pressable>
           <Pressable style={styles.small} onPress={onBack}>
             <Text style={styles.smallText}>Çık</Text>
           </Pressable>
@@ -93,6 +99,7 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6 },
   small: { backgroundColor: "#3a2a4a", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
   smallText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  extremeOn: { backgroundColor: "#ff3a2a" },
   wheel: { width: 130, height: 130, borderRadius: 65, borderWidth: 10, borderColor: "#ff6b5a", alignItems: "center", justifyContent: "center" },
   spoke: { width: 110, height: 8, backgroundColor: "#ff6b5a", borderRadius: 4 },
   marker: { position: "absolute", top: -2, width: 8, height: 16, backgroundColor: "#fff", borderRadius: 3 },

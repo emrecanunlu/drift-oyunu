@@ -14,7 +14,7 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
-const TO_GAME = new Set(["input", "calibrate"]);
+const TO_GAME = new Set(["input", "calibrate", "toggleMode"]);
 const TO_CONTROLLER = new Set(["haptic", "status"]);
 
 export async function createServer(opts: { port: number; staticDir?: string }) {

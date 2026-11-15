@@ -67,3 +67,12 @@ describe("combo time left", () => {
     expect(new ScoreSystem().comboTimeLeft()).toBe(0);
   });
 });
+
+describe("points multiplier", () => {
+  it("doubles points in extreme mode", () => {
+    const s = new ScoreSystem();
+    s.pointsScale = 2;
+    run(s, 2, true);
+    expect(s.pending).toBeCloseTo(600, 0);
+  });
+});

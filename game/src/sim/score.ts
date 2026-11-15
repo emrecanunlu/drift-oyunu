@@ -9,6 +9,8 @@ export class ScoreSystem {
   pending = 0;
   multiplier = 1;
   best: number;
+  /** Multiplies drift points (2 in extreme mode). */
+  pointsScale = 1;
   private wasDrifting = false;
   private sinceDrift = Infinity;
 
@@ -23,7 +25,7 @@ export class ScoreSystem {
         this.multiplier++;
         ev.push("comboUp");
       }
-      this.pending += POINTS_RATE * Math.abs(slip) * speed * dt;
+      this.pending += POINTS_RATE * this.pointsScale * Math.abs(slip) * speed * dt;
       this.sinceDrift = 0;
     } else {
       this.sinceDrift += dt;

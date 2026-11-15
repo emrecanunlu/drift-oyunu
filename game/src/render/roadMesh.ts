@@ -42,6 +42,7 @@ export class RoadMesh {
     private halfWidth: number,
     private seed: number,
     private propsAt: (s: number) => Props,
+    private onChunk?: (pts: RoadPoint[], kind: Props) => void,
   ) {}
 
   addPoints(points: RoadPoint[]): void {
@@ -78,6 +79,7 @@ export class RoadMesh {
       group.add(...makeProp(kind, x, z, rand));
     }
     this.scene.add(group);
+    this.onChunk?.(pts, kind);
     this.chunks.push({ endS: pts[pts.length - 1].s, group, owned });
   }
 

@@ -72,12 +72,24 @@ describe("drift transitions", () => {
 });
 
 describe("speed targets", () => {
-  it("cruises at 150 km/h and nitro reaches 210 km/h", () => {
-    expect(TUNING.cruiseSpeed * 3.6).toBeCloseTo(150, 0);
-    expect(TUNING.cruiseSpeed * TUNING.nitroFactor * 3.6).toBeCloseTo(210, 0);
+  it("cruises at 170 km/h and nitro reaches 238 km/h", () => {
+    expect(TUNING.cruiseSpeed * 3.6).toBeCloseTo(170, 0);
+    expect(TUNING.cruiseSpeed * TUNING.nitroFactor * 3.6).toBeCloseTo(238, 0);
   });
   it("reaches cruise from standstill within 6 s", () => {
     const c = run(createCar(0, 0, 0, 0), IDLE, 6);
     expect(speedOf(c)).toBeGreaterThanOrEqual(TUNING.cruiseSpeed - 0.5);
+  });
+});
+
+describe("extreme mode", () => {
+  it("is much faster and steers harder", async () => {
+    const { EXTREME } = await import("../src/sim/tuning");
+    expect(EXTREME.cruiseSpeed * 3.6).toBeCloseTo(230, 0);
+    expect(EXTREME.maxSteerRate).toBeGreaterThan(TUNING.maxSteerRate);
+    const c = run(createCar(0, 0, 0, 0), IDLE, 0);
+    let x = c;
+    for (let i = 0; i < 60 * 10; i++) x = stepCar(x, IDLE, 1 / 60, EXTREME);
+    expect(speedOf(x)).toBeGreaterThan(EXTREME.cruiseSpeed - 1);
   });
 });
