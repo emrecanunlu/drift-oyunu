@@ -3,7 +3,9 @@
   "private": true,
   "workspaces": ["shared", "server", "game", "controller"],
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "start": "npm -w game run build && npx tsx server/src/main.ts",
+    "controller": "npm -w controller run start"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
