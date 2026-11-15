@@ -3,6 +3,7 @@ import { InputState } from "./net/inputState";
 import { Keyboard } from "./net/keyboard";
 import { showPairing, hidePairing } from "./ui/pairing";
 import { Hud, setRecoveryFx } from "./ui/hud";
+import { ComboFx } from "./ui/comboFx";
 import { createWorld } from "./render/scene";
 import { RoadMesh, setRoadColors } from "./render/roadMesh";
 import { biomeAt as biomeAtRaw, blendPalette, BIOME_LENGTH } from "./world/biomes";
@@ -66,6 +67,7 @@ async function boot() {
   const skids = new SkidMarks(world.scene, 2);
   const smoke = new Smoke(world.scene);
   const hud = new Hud();
+  const combo = new ComboFx();
   const score = new ScoreSystem(Number(localStorage.getItem(BEST_KEY)) || 0);
   const recovery = new Recovery();
   const buzz = new DriftBuzz();
@@ -103,13 +105,17 @@ async function boot() {
     if (rec.car !== car) chase.snap();
     car = rec.car;
     if (rec.started) {
+      combo.lost();
       score.cancelCombo();
       sound.whoosh();
       haptic("reset");
     }
 
     if (!recovery.active) {
+      const before = { total: score.total, mult: score.multiplier };
       for (const e of score.update(SIM_DT, car.drifting, slipAngle(car), speedOf(car))) {
+        if (e === "comboUp") combo.up(score.multiplier);
+        if (e === "comboEnd") combo.bank(score.total - before.total, before.mult);
         haptic(e);
         if (e === "comboUp") sound.ding(score.multiplier);
         if (e === "comboEnd") localStorage.setItem(BEST_KEY, String(score.best));
@@ -154,6 +160,7 @@ async function boot() {
     }
     sound.update(speedOf(car), current.nitro, car.drifting && !recovery.active, slipAngle(car), started);
     setRecoveryFx(world.renderer.domElement, recovery.active ? recovery.progress : 0);
+    combo.update(score.pending, score.multiplier, score.comboTimeLeft());
     hud.update(score.total, Math.max(score.best, score.total), score.pending, score.multiplier, speedOf(car) * 3.6);
 
     if (now - lastStatus > 200) {

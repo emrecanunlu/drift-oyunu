@@ -39,6 +39,13 @@ export class ScoreSystem {
     return ev;
   }
 
+  /** 1 while drifting, draining to 0 over the combo window; 0 when there is no combo. */
+  comboTimeLeft(): number {
+    if (this.pending <= 0) return 0;
+    if (this.wasDrifting) return 1;
+    return Math.max(0, 1 - this.sinceDrift / COMBO_WINDOW);
+  }
+
   cancelCombo(): void {
     this.pending = 0;
     this.multiplier = 1;

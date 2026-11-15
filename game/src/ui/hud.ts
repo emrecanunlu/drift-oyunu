@@ -16,8 +16,7 @@ export class Hud {
   update(total: number, best: number, pending: number, mult: number, kmh: number): void {
     this.total.textContent = fmt(total);
     this.best.textContent = `En iyi ${fmt(best)}`;
-    this.combo.style.opacity = pending > 0 ? "1" : "0";
-    if (pending > 0) this.combo.innerHTML = `+${fmt(pending)}<span class="mult">x${mult}</span>`;
+    this.combo.style.display = "none"; // combo lives in the centre (ComboFx)
     this.speed.textContent = `${Math.round(kmh)} km/s`;
   }
 

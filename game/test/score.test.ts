@@ -52,3 +52,18 @@ describe("ScoreSystem", () => {
     expect(s.total).toBeGreaterThan(1000);
   });
 });
+
+describe("combo time left", () => {
+  it("is full while drifting and drains over the combo window", () => {
+    const s = new ScoreSystem();
+    run(s, 0.5, true);
+    expect(s.comboTimeLeft()).toBe(1);
+    run(s, 0.75, false);
+    expect(s.comboTimeLeft()).toBeCloseTo(0.5, 1);
+    run(s, 1, false);
+    expect(s.comboTimeLeft()).toBe(0);
+  });
+  it("is zero with no combo", () => {
+    expect(new ScoreSystem().comboTimeLeft()).toBe(0);
+  });
+});
