@@ -1,4 +1,5 @@
-import { engineState, squealGain, dingPitch, chordAt, midiToHz } from "./params";
+import { engineState, dingPitch, chordAt, midiToHz } from "./params";
+import { tireMix, type Surface } from "./tires";
 
 const BPM = 92;
 const EIGHTH = 60 / BPM / 2;
@@ -24,8 +25,13 @@ export class Sound {
   private intake!: GainNode;
   private lastGear = 1;
   private dipUntil = 0;
-  private squealFilter!: BiquadFilterNode;
-  private squeal!: GainNode;
+  private screechBands: BiquadFilterNode[] = [];
+  private screech!: GainNode;
+  private flutter!: GainNode;
+  private scrubFilter!: BiquadFilterNode;
+  private scrub!: GainNode;
+  private crunchFilter!: BiquadFilterNode;
+  private crunch!: GainNode;
   private music!: GainNode;
   private nextNote = 0;
   private step = 0;
@@ -94,18 +100,45 @@ export class Sound {
     hiss.connect(hissF).connect(this.intake).connect(this.master);
     hiss.start();
 
-    // Tire squeal: looping noise through a resonant bandpass.
-    const src = ctx.createBufferSource();
-    src.buffer = this.noise;
-    src.loop = true;
-    this.squealFilter = ctx.createBiquadFilter();
-    this.squealFilter.type = "bandpass";
-    this.squealFilter.frequency.value = 1100;
-    this.squealFilter.Q.value = 2;
-    this.squeal = ctx.createGain();
-    this.squeal.gain.value = 0;
-    src.connect(this.squealFilter).connect(this.squeal).connect(this.master);
-    src.start();
+    // Tires. Screech: noise through two sharp resonances (rubber stick-slip tone + overtone),
+    // with a fast flutter on the level. Scrub: broadband hiss. Crunch: grainy lowish noise.
+    const noiseSrc = () => {
+      const s = ctx.createBufferSource();
+      s.buffer = this.noise;
+      s.loop = true;
+      s.start(0, Math.random() * 2);
+      return s;
+    };
+    const tone = noiseSrc();
+    this.screechBands = [900, 1780].map((f, i) => {
+      const b = ctx.createBiquadFilter();
+      b.type = "bandpass";
+      b.frequency.value = f;
+      b.Q.value = i ? 22 : 16;
+      tone.connect(b);
+      return b;
+    });
+    this.screech = ctx.createGain();
+    this.screech.gain.value = 0;
+    const flutter = ctx.createGain(); // modulated per update for stick-slip chatter
+    this.flutter = flutter;
+    const boost = ctx.createGain();
+    boost.gain.value = 6; // narrow bands are quiet; bring them up
+    for (const b of this.screechBands) b.connect(boost);
+    boost.connect(flutter).connect(this.screech).connect(this.master);
+
+    this.scrubFilter = ctx.createBiquadFilter();
+    this.scrubFilter.type = "lowpass";
+    this.scrub = ctx.createGain();
+    this.scrub.gain.value = 0;
+    noiseSrc().connect(this.scrubFilter).connect(this.scrub).connect(this.master);
+
+    this.crunchFilter = ctx.createBiquadFilter();
+    this.crunchFilter.type = "bandpass";
+    this.crunchFilter.Q.value = 0.9;
+    this.crunch = ctx.createGain();
+    this.crunch.gain.value = 0;
+    noiseSrc().connect(this.crunchFilter).connect(this.crunch).connect(this.master);
 
     // Music bus.
     this.music = ctx.createGain();
@@ -120,7 +153,7 @@ export class Sound {
     if (this.ctx) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.8, this.ctx.currentTime, 0.05);
   }
 
-  update(speed: number, accelerating: boolean, nitro: boolean, drifting: boolean, slip: number, running: boolean): void {
+  update(speed: number, accelerating: boolean, nitro: boolean, drifting: boolean, slip: number, running: boolean, surface: Surface): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -140,8 +173,17 @@ export class Sound {
     }
     this.lastGear = e.gear;
     this.intake.gain.setTargetAtTime(running ? 0.012 + e.load * 0.03 * (e.rpm / 7000) : 0, t, 0.15);
-    this.squeal.gain.setTargetAtTime(running ? squealGain(drifting, slip) : 0, t, 0.06);
-    this.squealFilter.frequency.setTargetAtTime(900 + Math.abs(slip) * 500 + Math.random() * 80, t, 0.05);
+    const m = tireMix(surface, running && drifting, slip, running ? speed : 0);
+    // Pitch rises a little with slip and wanders randomly (no two screeches alike).
+    const pitch = 1 + Math.abs(slip) * 0.25 + (Math.random() - 0.5) * 0.08;
+    this.screechBands[0].frequency.setTargetAtTime(820 * pitch, t, 0.04);
+    this.screechBands[1].frequency.setTargetAtTime(1640 * pitch, t, 0.04);
+    this.flutter.gain.setTargetAtTime(0.55 + Math.random() * 0.45, t, 0.01);
+    this.screech.gain.setTargetAtTime(m.screech, t, 0.05);
+    this.scrubFilter.frequency.setTargetAtTime(m.scrubHz, t, 0.1);
+    this.scrub.gain.setTargetAtTime(m.scrub, t, 0.08);
+    this.crunchFilter.frequency.setTargetAtTime(m.crunchHz * (0.8 + Math.random() * 0.4) || 400, t, 0.02);
+    this.crunch.gain.setTargetAtTime(m.crunch * (0.4 + Math.random() * 0.9), t, 0.015);
   }
 
   ding(multiplier: number): void {

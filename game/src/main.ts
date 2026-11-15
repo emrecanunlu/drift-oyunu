@@ -8,6 +8,7 @@ import { createWorld } from "./render/scene";
 import { RoadMesh, setRoadColors } from "./render/roadMesh";
 import { biomeAt as biomeAtRaw, blendPalette, BIOME_LENGTH } from "./world/biomes";
 import { Sound } from "./audio/sound";
+import { surfaceAt } from "./audio/tires";
 import { ChaseCamera } from "./render/carView";
 import { CarModel, rearWheels } from "./render/carModel";
 import { SkidMarks, Smoke } from "./render/effects";
@@ -61,6 +62,7 @@ async function boot() {
   let carS = 0;
   let biomeIndex = -1;
   let prevSpeed = 0;
+  let onRoad = true;
   roadMesh.addPoints(road.ensureAhead(0));
 
   const carView = new CarModel();
@@ -130,7 +132,9 @@ async function boot() {
     skids.update(car.drifting && !recovery.active ? wheels : [null, null]);
     if (car.drifting && ++smokeTick % 2 === 0) for (const [x, z] of wheels) smoke.emit(x, z, car.vx, car.vz);
 
-    const s = road.nearest(car.x, car.z).point.s;
+    const near = road.nearest(car.x, car.z);
+    const s = near.point.s;
+    onRoad = near.distance <= road.halfWidth + 0.5;
     carS = s;
     roadMesh.addPoints(road.ensureAhead(s));
     road.trimBehind(s);
@@ -162,7 +166,8 @@ async function boot() {
     const spd = speedOf(car);
     const accelerating = (spd - prevSpeed) / Math.max(dt, 1e-3) > 0.8 || current.nitro;
     prevSpeed = spd;
-    sound.update(spd, accelerating, current.nitro, car.drifting && !recovery.active, slipAngle(car), started);
+    sound.update(spd, accelerating, current.nitro, car.drifting && !recovery.active, slipAngle(car), started,
+      surfaceAt(onRoad, (biome.t > 0.5 ? biome.b : biome.a).id));
     setRecoveryFx(world.renderer.domElement, recovery.active ? recovery.progress : 0);
     combo.update(score.pending, score.multiplier, score.comboTimeLeft());
     hud.update(score.total, Math.max(score.best, score.total), score.pending, score.multiplier, speedOf(car) * 3.6);
