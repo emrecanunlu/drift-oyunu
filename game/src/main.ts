@@ -8,7 +8,8 @@ import { createWorld } from "./render/scene";
 import { RoadMesh, setRoadColors } from "./render/roadMesh";
 import { biomeAt as biomeAtRaw, blendPalette, BIOME_LENGTH } from "./world/biomes";
 import { Sound } from "./audio/sound";
-import { createCarMesh, rearWheels, ChaseCamera } from "./render/carView";
+import { ChaseCamera } from "./render/carView";
+import { CarModel, rearWheels } from "./render/carModel";
 import { SkidMarks, Smoke } from "./render/effects";
 import { Road, BEHIND } from "./sim/road";
 import { createCar, stepCar, speedOf, slipAngle, type CarInput } from "./sim/car";
@@ -62,7 +63,7 @@ async function boot() {
   let prevSpeed = 0;
   roadMesh.addPoints(road.ensureAhead(0));
 
-  const carView = createCarMesh();
+  const carView = new CarModel();
   world.scene.add(carView.root);
   const chase = new ChaseCamera(world.camera);
   const skids = new SkidMarks(world.scene, 2);
@@ -145,9 +146,7 @@ async function boot() {
       acc -= SIM_DT;
     }
 
-    carView.root.position.set(car.x, 0, car.z);
-    carView.root.rotation.y = car.heading;
-    for (const w of carView.frontWheels) w.rotation.y = -current.steer * 0.5;
+    carView.update(car, current, dt);
     smoke.update(dt);
     chase.update(car, dt, current.nitro);
     world.follow(car.x, car.z);
@@ -155,6 +154,7 @@ async function boot() {
     const pal = blendPalette(biome.a.palette, biome.b.palette, biome.t);
     world.applyPalette(pal);
     setRoadColors(pal.asphalt, pal.paint);
+    carView.setLights(Math.min(1, Math.max(0, (1.15 - pal.sunIntensity) / 0.45)));
     if (biome.index !== biomeIndex) {
       biomeIndex = biome.index;
       hud.showBiome(biome.a.name);
