@@ -4,7 +4,9 @@ import { Keyboard } from "./net/keyboard";
 import { showPairing, hidePairing } from "./ui/pairing";
 import { Hud, setRecoveryFx } from "./ui/hud";
 import { createWorld } from "./render/scene";
-import { RoadMesh } from "./render/roadMesh";
+import { RoadMesh, setRoadColors } from "./render/roadMesh";
+import { biomeAt as biomeAtRaw, blendPalette, BIOME_LENGTH } from "./world/biomes";
+import { Sound } from "./audio/sound";
 import { createCarMesh, rearWheels, ChaseCamera } from "./render/carView";
 import { SkidMarks, Smoke } from "./render/effects";
 import { Road, BEHIND } from "./sim/road";
@@ -15,6 +17,9 @@ import { DriftBuzz } from "./sim/driftBuzz";
 
 const SIM_DT = 1 / 60;
 const BEST_KEY = "drift.best";
+/** Debug: ?biome=N starts in the Nth biome. */
+const BIOME_OFFSET = Number(new URLSearchParams(location.search).get("biome") ?? 0) * BIOME_LENGTH;
+const biomeAt = (s: number) => biomeAtRaw(s + BIOME_OFFSET);
 
 async function boot() {
   const { wsUrl } = (await (await fetch("/config.json")).json()) as { wsUrl: string };
@@ -33,8 +38,26 @@ async function boot() {
 
   const world = createWorld(document.getElementById("app")!);
   const seed = (Math.random() * 2 ** 31) | 0;
-  const road = new Road(seed);
-  const roadMesh = new RoadMesh(world.scene, road.halfWidth, seed);
+  const road = new Road(seed, (s) => biomeAt(s).a.road);
+  const roadMesh = new RoadMesh(world.scene, road.halfWidth, seed, (s) => {
+    const b = biomeAt(s);
+    return (b.t > 0.5 ? b.b : b.a).id;
+  });
+
+  const sound = new Sound();
+  const soundBtn = document.getElementById("sound")!;
+  const startSound = () => {
+    sound.start();
+    soundBtn.style.display = "none";
+  };
+  soundBtn.addEventListener("click", startSound);
+  addEventListener("pointerdown", startSound);
+  addEventListener("keydown", (e) => {
+    if (e.key === "m" || e.key === "M") sound.toggleMute();
+    else startSound();
+  });
+  let carS = 0;
+  let biomeIndex = -1;
   roadMesh.addPoints(road.ensureAhead(0));
 
   const carView = createCarMesh();
@@ -81,12 +104,14 @@ async function boot() {
     car = rec.car;
     if (rec.started) {
       score.cancelCombo();
+      sound.whoosh();
       haptic("reset");
     }
 
     if (!recovery.active) {
       for (const e of score.update(SIM_DT, car.drifting, slipAngle(car), speedOf(car))) {
         haptic(e);
+        if (e === "comboUp") sound.ding(score.multiplier);
         if (e === "comboEnd") localStorage.setItem(BEST_KEY, String(score.best));
       }
     }
@@ -98,6 +123,7 @@ async function boot() {
     if (car.drifting && ++smokeTick % 2 === 0) for (const [x, z] of wheels) smoke.emit(x, z, car.vx, car.vz);
 
     const s = road.nearest(car.x, car.z).point.s;
+    carS = s;
     roadMesh.addPoints(road.ensureAhead(s));
     road.trimBehind(s);
     roadMesh.trim(s - BEHIND);
@@ -118,6 +144,15 @@ async function boot() {
     smoke.update(dt);
     chase.update(car, dt, current.nitro);
     world.follow(car.x, car.z);
+    const biome = biomeAt(carS);
+    const pal = blendPalette(biome.a.palette, biome.b.palette, biome.t);
+    world.applyPalette(pal);
+    setRoadColors(pal.asphalt, pal.paint);
+    if (biome.index !== biomeIndex) {
+      biomeIndex = biome.index;
+      hud.showBiome(biome.a.name);
+    }
+    sound.update(speedOf(car), current.nitro, car.drifting && !recovery.active, slipAngle(car), started);
     setRecoveryFx(world.renderer.domElement, recovery.active ? recovery.progress : 0);
     hud.update(score.total, Math.max(score.best, score.total), score.pending, score.multiplier, speedOf(car) * 3.6);
 

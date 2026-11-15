@@ -21,6 +21,16 @@ export class Hud {
     this.speed.textContent = `${Math.round(kmh)} km/s`;
   }
 
+  /** Shows a biome name in the middle of the screen for a few seconds. */
+  showBiome(name: string): void {
+    const el = document.getElementById("biome")!;
+    el.textContent = name;
+    el.style.opacity = "1";
+    clearTimeout(this.bannerTimer);
+    this.bannerTimer = setTimeout(() => (el.style.opacity = "0"), 3000);
+  }
+  private bannerTimer: ReturnType<typeof setTimeout> | undefined;
+
   /** null hides the banner. */
   message(text: string | null): void {
     this.banner.style.display = text ? "flex" : "none";

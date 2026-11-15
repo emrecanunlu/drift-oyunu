@@ -20,6 +20,11 @@
       #stale { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; font-size: 26px;
         text-shadow: 0 2px 8px rgba(0,0,0,.6); pointer-events: none; }
       #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+      #biome { position: fixed; top: 22%; left: 0; right: 0; text-align: center; font-size: 44px; font-weight: 800;
+        letter-spacing: 3px; text-shadow: 0 3px 14px rgba(0,0,0,.55); opacity: 0; transition: opacity .8s; pointer-events: none; }
+      #sound { position: fixed; left: 24px; top: 20px; padding: 10px 16px; border: 0; border-radius: 10px; cursor: pointer;
+        background: rgba(0,0,0,.55); color: #fff; font-size: 15px; }
+      #hint { position: fixed; left: 24px; top: 64px; font-size: 12px; opacity: .6; }
     </style>
   </head>
   <body>
@@ -28,6 +33,9 @@
     <div id="stale">Kontrolcü bağlantısı koptu</div>
     <div id="flash"></div>
     <div id="pairing"></div>
+    <div id="biome"></div>
+    <button id="sound">🔊 Sesi aç</button>
+    <div id="hint">M: sesi kapat/aç</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

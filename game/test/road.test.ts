@@ -91,3 +91,14 @@ describe("Road width", () => {
     expect(new Road(1).halfWidth).toBe(11);
   });
 });
+
+describe("Road style", () => {
+  it("scales curvature by the style at each distance", () => {
+    const r = new Road(4, () => ({ curvatureScale: 0.5, straightChance: 0 }));
+    for (let s = 0; s <= 3000; s += 50) r.ensureAhead(s);
+    const pts = r.points;
+    for (let i = 1; i < pts.length; i++) {
+      expect(Math.abs(pts[i].heading - pts[i - 1].heading) / STEP).toBeLessThanOrEqual(0.5 * MAX_CURVATURE + 1e-6);
+    }
+  });
+});

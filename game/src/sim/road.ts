@@ -1,4 +1,7 @@
 import { mulberry32 } from "./rng";
+import type { RoadStyle } from "../world/biomes";
+
+export const DEFAULT_STYLE: RoadStyle = { curvatureScale: 1, straightChance: 0.15 };
 
 export const STEP = 2;
 export const MAX_CURVATURE = 1 / 25;
@@ -24,21 +27,23 @@ export class Road {
   private lastSign = 1;
   private hint = 0;
 
-  constructor(seed: number) {
+  constructor(seed: number, private style: (s: number) => RoadStyle = () => DEFAULT_STYLE) {
     this.rand = mulberry32(seed);
     this.points.push({ s: 0, x: 0, z: 0, heading: 0 });
   }
 
   private pickTarget(forceSign?: number) {
     const r = this.rand;
-    if (forceSign === undefined && this.points.length > 30 && r() < 0.15) {
+    const s = this.points[this.points.length - 1].s;
+    const st = this.style(s);
+    if (forceSign === undefined && s > 60 && r() < st.straightChance) {
       this.targetK = 0;
       this.segLeft = r() < 0.3 ? 100 + r() * 60 : 25 + r() * 25;
       return;
     }
     let sign = forceSign ?? (r() < 0.75 ? -this.lastSign : this.lastSign);
     this.lastSign = sign;
-    this.targetK = sign * (0.55 + 0.45 * r()) * MAX_CURVATURE;
+    this.targetK = sign * (0.55 + 0.45 * r()) * MAX_CURVATURE * st.curvatureScale;
     this.segLeft = 30 + r() * 40;
   }
 

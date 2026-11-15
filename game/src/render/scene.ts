@@ -1,25 +1,7 @@
 import * as THREE from "three";
+import type { Palette } from "../world/biomes";
 
-const SKY_TOP = "#2b1b4a";
-const SKY_MID = "#c2557a";
-const SKY_HORIZON = "#ffb36b";
-export const FOG_COLOR = 0xf09a6e;
-
-function skyTexture(): THREE.Texture {
-  const c = document.createElement("canvas");
-  c.width = 4;
-  c.height = 256;
-  const g = c.getContext("2d")!;
-  const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, SKY_TOP);
-  grad.addColorStop(0.55, SKY_MID);
-  grad.addColorStop(1, SKY_HORIZON);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 4, 256);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
+const hex = (c: number) => "#" + c.toString(16).padStart(6, "0");
 
 export type World = {
   renderer: THREE.WebGLRenderer;
@@ -27,6 +9,8 @@ export type World = {
   camera: THREE.PerspectiveCamera;
   /** Ground + distant hills follow the car so they never end. */
   follow(x: number, z: number): void;
+  /** Recolor sky, fog, ground, hills and lights. */
+  applyPalette(p: Palette): void;
 };
 
 export function createWorld(container: HTMLElement): World {
@@ -36,9 +20,17 @@ export function createWorld(container: HTMLElement): World {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.appendChild(renderer.domElement);
 
+  const skyCanvas = document.createElement("canvas");
+  skyCanvas.width = 4;
+  skyCanvas.height = 256;
+  const skyCtx = skyCanvas.getContext("2d")!;
+  const sky = new THREE.CanvasTexture(skyCanvas);
+  sky.colorSpace = THREE.SRGBColorSpace;
+
   const scene = new THREE.Scene();
-  scene.background = skyTexture();
-  scene.fog = new THREE.Fog(FOG_COLOR, 60, 420);
+  scene.background = sky;
+  const fog = new THREE.Fog(0xf09a6e, 60, 420);
+  scene.fog = fog;
 
   const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.5, 1500);
   addEventListener("resize", () => {
@@ -47,15 +39,14 @@ export function createWorld(container: HTMLElement): World {
     camera.updateProjectionMatrix();
   });
 
-  scene.add(new THREE.HemisphereLight(0xffc9a0, 0x3b2a4a, 1.1));
+  const hemi = new THREE.HemisphereLight(0xffc9a0, 0x3b2a4a, 1.1);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffa060, 1.6);
   sun.position.set(-50, 60, -30);
   scene.add(sun);
 
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(3000, 3000),
-    new THREE.MeshLambertMaterial({ color: 0xc98a5e }),
-  );
+  const groundMat = new THREE.MeshLambertMaterial({ color: 0xc98a5e });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.05;
   scene.add(ground);
@@ -74,6 +65,7 @@ export function createWorld(container: HTMLElement): World {
   }
   scene.add(hills);
 
+  let lastKey = "";
   return {
     renderer,
     scene,
@@ -83,6 +75,29 @@ export function createWorld(container: HTMLElement): World {
       ground.position.z = z;
       hills.position.x = x;
       hills.position.z = z;
+    },
+    applyPalette(p) {
+      const key = `${p.skyTop}${p.skyMid}${p.skyHorizon}`;
+      if (key !== lastKey) {
+        lastKey = key;
+        const grad = skyCtx.createLinearGradient(0, 0, 0, 256);
+        grad.addColorStop(0, hex(p.skyTop));
+        grad.addColorStop(0.55, hex(p.skyMid));
+        grad.addColorStop(1, hex(p.skyHorizon));
+        skyCtx.fillStyle = grad;
+        skyCtx.fillRect(0, 0, 4, 256);
+        sky.needsUpdate = true;
+      }
+      fog.color.setHex(p.fog);
+      fog.near = p.fogNear;
+      fog.far = p.fogFar;
+      groundMat.color.setHex(p.ground);
+      hillMat.color.setHex(p.hill);
+      sun.color.setHex(p.sun);
+      sun.intensity = p.sunIntensity;
+      hemi.color.setHex(p.hemiSky);
+      hemi.groundColor.setHex(p.hemiGround);
+      hemi.intensity = p.hemiIntensity;
     },
   };
 }
