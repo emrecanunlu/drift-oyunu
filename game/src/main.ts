@@ -20,6 +20,7 @@ import { DriftBuzz } from "./sim/driftBuzz";
 import { Crowd } from "./sim/crowd";
 import { Exhaust } from "./sim/exhaust";
 import { Police } from "./sim/police";
+import { PauseControl, type PauseState } from "./sim/pause";
 import { TUNING, EXTREME } from "./sim/tuning";
 import { mulberry32 } from "./sim/rng";
 import { engineState } from "./audio/params";
@@ -125,6 +126,15 @@ async function boot() {
 
   let car = createCar(0, 4, 0, 0);
   let started = false;
+  const pause = new PauseControl();
+  let pauseState: PauseState = { running: true, paused: false, countdown: null };
+  const countdownEl = document.getElementById("countdown")!;
+  let lastCountdown: number | null = null;
+  // rAF stops while the tab is hidden, so enter the paused state from the event itself.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseState = pause.update(0, { inputOk: false, visible: false, keyboard: false });
+  });
+  let goUntil = 0;
   let usedController = false;
   let acc = 0;
   let last = performance.now();
@@ -149,7 +159,15 @@ async function boot() {
       if (!started) return;
     }
     if (!kb.active && !stale) usedController = true;
-    hud.message(stale && usedController && !kb.active ? "Kontrolcü bağlantısı koptu" : null);
+
+    // Pause when the phone drops (or the tab is hidden); 3-2-1 when it comes back.
+    pauseState = pause.update(SIM_DT, {
+      inputOk: !stale,
+      visible: !document.hidden,
+      keyboard: kb.active || !usedController,
+    });
+    hud.message(pauseState.paused ? "Duraklatıldı — kontrolcü bağlantısı bekleniyor" : null);
+    if (!pauseState.running) return;
 
     car = stepCar(car, current, SIM_DT, extreme ? EXTREME : TUNING);
 
@@ -229,7 +247,14 @@ async function boot() {
     const spd = speedOf(car);
     const accelerating = (spd - prevSpeed) / Math.max(dt, 1e-3) > 0.8 || current.nitro;
     prevSpeed = spd;
-    sound.update(spd, accelerating, current.nitro, car.drifting && !recovery.active, slipAngle(car), started,
+    // Countdown overlay: 3, 2, 1, BAŞLA!
+    if (pauseState.countdown !== null) countdownEl.textContent = String(pauseState.countdown);
+    else if (lastCountdown !== null) goUntil = now + 700;
+    if (pauseState.countdown === null && now < goUntil) countdownEl.textContent = "BAŞLA!";
+    countdownEl.style.display = pauseState.countdown !== null || now < goUntil ? "flex" : "none";
+    lastCountdown = pauseState.countdown;
+
+    sound.update(spd, accelerating, current.nitro, car.drifting && !recovery.active, slipAngle(car), started && pauseState.running,
       surfaceAt(onRoad, (biome.t > 0.5 ? biome.b : biome.a).id));
 
     // Exhaust: pops/flames on shifts and lift-off, throttle blip on downshifts.
