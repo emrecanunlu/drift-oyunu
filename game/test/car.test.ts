@@ -85,7 +85,7 @@ describe("speed targets", () => {
 describe("extreme mode", () => {
   it("is much faster and steers harder", async () => {
     const { EXTREME } = await import("../src/sim/tuning");
-    expect(EXTREME.cruiseSpeed * 3.6).toBeCloseTo(230, 0);
+    expect(EXTREME.cruiseSpeed * 3.6).toBeCloseTo(200, 0);
     expect(EXTREME.maxSteerRate).toBeGreaterThan(TUNING.maxSteerRate);
     const c = run(createCar(0, 0, 0, 0), IDLE, 0);
     let x = c;

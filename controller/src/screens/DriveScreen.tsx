@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -9,6 +9,7 @@ import { useControllerSocket } from "../net";
 import { useSteering } from "../useSteering";
 
 const INVERT_KEY = "drift.invert";
+const EXTREME_KEY = "drift.extremeUsed";
 const HAPTIC: Record<HapticKind, Haptics.ImpactFeedbackStyle> = {
   comboUp: Haptics.ImpactFeedbackStyle.Light,
   comboEnd: Haptics.ImpactFeedbackStyle.Medium,
@@ -39,6 +40,31 @@ export function DriveScreen({ url, onBack }: { url: string; onBack: () => void }
     return () => clearInterval(id);
   }, [send, steerRef]);
 
+  // Pulse the EXTREME button until the player has tried it once.
+  const [extremeUsed, setExtremeUsed] = useState(true);
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    AsyncStorage.getItem(EXTREME_KEY).then((v) => setExtremeUsed(v === "1"));
+  }, []);
+  useEffect(() => {
+    if (extremeUsed) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.15, duration: 450, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 450, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      pulse.setValue(1);
+    };
+  }, [extremeUsed, pulse]);
+  const markExtremeUsed = () => {
+    setExtremeUsed(true);
+    AsyncStorage.setItem(EXTREME_KEY, "1");
+  };
+
   const toggleInvert = () => {
     const v = !invert;
     setInvert(v);
@@ -60,12 +86,17 @@ export function DriveScreen({ url, onBack }: { url: string; onBack: () => void }
           <Pressable style={styles.small} onPress={toggleInvert}>
             <Text style={styles.smallText}>Yönü çevir</Text>
           </Pressable>
-          <Pressable
-            style={[styles.small, status?.extreme && styles.extremeOn]}
-            onPress={() => send({ t: "toggleMode" })}
-          >
-            <Text style={styles.smallText}>EXTREME</Text>
-          </Pressable>
+          <Animated.View style={{ transform: [{ scale: pulse }] }}>
+            <Pressable
+              style={[styles.small, (status?.extreme || !extremeUsed) && styles.extremeOn]}
+              onPress={() => {
+                send({ t: "toggleMode" });
+                markExtremeUsed();
+              }}
+            >
+              <Text style={styles.smallText}>{extremeUsed ? "EXTREME" : "🔥 EXTREME"}</Text>
+            </Pressable>
+          </Animated.View>
           <Pressable style={styles.small} onPress={onBack}>
             <Text style={styles.smallText}>Çık</Text>
           </Pressable>

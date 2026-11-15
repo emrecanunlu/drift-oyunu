@@ -1,5 +1,6 @@
 import { engineState, dingPitch, chordAt, midiToHz } from "./params";
 import { tireMix, type Surface } from "./tires";
+import { musicLayers } from "./intensity";
 
 const BPM = 92;
 const EIGHTH = 60 / BPM / 2;
@@ -143,7 +144,10 @@ export class Sound {
     // Music bus.
     this.music = ctx.createGain();
     this.music.gain.value = 0.55;
-    this.music.connect(this.master);
+    this.musicFilter = ctx.createBiquadFilter();
+    this.musicFilter.type = "lowpass";
+    this.musicFilter.frequency.value = musicLayers(0).cutoff;
+    this.music.connect(this.musicFilter).connect(this.master);
     this.nextNote = ctx.currentTime + 0.1;
     setInterval(() => this.schedule(), 25);
   }
@@ -381,6 +385,34 @@ export class Sound {
     this.sirenGain.gain.setTargetAtTime(level * level * 0.11, t, 0.1);
   }
 
+  private layers = musicLayers(0);
+  private musicFilter: BiquadFilterNode | null = null;
+
+  /** Music builds up with the combo multiplier (0 = no combo); combo-ups get a riser. */
+  setCombo(multiplier: number, rising = false): void {
+    this.layers = musicLayers(multiplier);
+    const ctx = this.ctx;
+    if (!ctx || !this.musicFilter) return;
+    this.musicFilter.frequency.setTargetAtTime(this.layers.cutoff, ctx.currentTime, 0.3);
+    if (rising && multiplier >= 2) {
+      const t = ctx.currentTime;
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      const f = ctx.createBiquadFilter();
+      f.type = "bandpass";
+      f.Q.value = 2;
+      f.frequency.setValueAtTime(600, t);
+      f.frequency.exponentialRampToValueAtTime(5000 + multiplier * 400, t + 0.35);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.05 + multiplier * 0.012, t + 0.3);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+      src.connect(f).connect(g).connect(this.master);
+      src.start(t, Math.random());
+      src.stop(t + 0.5);
+    }
+  }
+
   private schedule(): void {
     const ctx = this.ctx!;
     while (this.nextNote < ctx.currentTime + LOOKAHEAD) {
@@ -420,9 +452,9 @@ export class Sound {
       for (const n of chord) for (const d of [-7, 7]) voice("sawtooth", midiToHz(n), 0.022, 0.6, EIGHTH * 8, 1100, d);
     }
     voice("square", midiToHz(chord[0] - 12), 0.05, 0.01, EIGHTH * 0.9, 380);
-    voice("triangle", midiToHz(chord[pos % 3] + 12), 0.025, 0.005, EIGHTH * 0.8, 2400);
+    voice("triangle", midiToHz(chord[pos % 3] + (this.layers.arpUp ? 24 : 12)), this.layers.arpUp ? 0.035 : 0.025, 0.005, EIGHTH * 0.8, 3200);
 
-    if (pos === 0 || pos === 4) {
+    if (pos === 0 || pos === 4 || (this.layers.kickEveryBeat && pos % 2 === 0)) {
       const o = ctx.createOscillator();
       o.frequency.setValueAtTime(120, t);
       o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
@@ -432,7 +464,7 @@ export class Sound {
       o.start(t);
       o.stop(t + 0.3);
     }
-    if (pos % 2 === 1) {
+    if (pos % 2 === 1 || this.layers.hat16) {
       const src = ctx.createBufferSource();
       src.buffer = this.noise;
       const f = ctx.createBiquadFilter();

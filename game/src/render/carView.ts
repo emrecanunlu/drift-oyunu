@@ -4,6 +4,11 @@ import { TUNING } from "../sim/tuning";
 
 export class ChaseCamera {
   private shakeAmt = 0;
+  private punchAmt = 0;
+  /** Narrow the FOV briefly (degrees) — pulls the player in on a combo. */
+  punch(deg: number): void {
+    this.punchAmt = Math.max(this.punchAmt, deg);
+  }
   /** Camera shake (metres of jitter, decays quickly). */
   shake(amount: number): void {
     this.shakeAmt = Math.max(this.shakeAmt, amount);
@@ -36,7 +41,8 @@ export class ChaseCamera {
     }
     this.cam.lookAt(this.look);
     const fov = Math.min(88, 62 + Math.max(0, speed - TUNING.cruiseSpeed * 0.6) * 0.45 + (nitro ? 8 : 0));
-    this.cam.fov += (fov - this.cam.fov) * Math.min(1, 3 * dt);
+    this.cam.fov += (fov - this.punchAmt - this.cam.fov) * Math.min(1, (this.punchAmt > 0.5 ? 12 : 3) * dt);
+    this.punchAmt *= Math.exp(-3.5 * dt);
     this.cam.updateProjectionMatrix();
   }
 

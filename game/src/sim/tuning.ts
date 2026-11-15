@@ -31,8 +31,8 @@ export type Tuning = typeof TUNING;
 /** Extreme mode: much faster, sharper steering. */
 export const EXTREME: Tuning = {
   ...TUNING,
-  cruiseSpeed: 63.89, // 230 km/h
-  nitroFactor: 1.35, // ~310 km/h
+  cruiseSpeed: 55.56, // 200 km/h
+  nitroFactor: 1.3, // ~260 km/h
   accel: 16,
   maxSteerRate: 2.5,
   steerSpeedGain: 0.1,

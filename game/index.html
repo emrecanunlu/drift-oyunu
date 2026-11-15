@@ -20,8 +20,8 @@
       #stale { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; font-size: 26px;
         text-shadow: 0 2px 8px rgba(0,0,0,.6); pointer-events: none; }
       #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
-      #combo { --c: #fff; position: fixed; left: 50%; top: 5%; transform: translateX(-50%); display: flex; flex-direction: column;
-        align-items: center; opacity: 0; transition: opacity .25s; pointer-events: none; text-shadow: 0 3px 12px rgba(0,0,0,.5); }
+      #combo { --c: #fff; position: fixed; left: 0; right: 0; margin: 0 auto; width: max-content; top: 5%; display: flex; flex-direction: column;
+        align-items: center; opacity: 0; pointer-events: none; text-shadow: 0 3px 12px rgba(0,0,0,.5); }
       #combo .label { font-size: 34px; font-weight: 900; letter-spacing: 6px; color: var(--c); font-style: italic; }
       #combo .ring { position: relative; width: 140px; height: 140px; margin: 4px 0; }
       #combo svg { position: absolute; inset: 0; transform: rotate(-90deg); overflow: visible; }
@@ -31,23 +31,24 @@
       #combo .mult { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
         font-size: 58px; font-weight: 900; color: var(--c); }
       #combo .pts { font-size: 44px; font-weight: 800; }
-      #combo.pop { animation: pop .35s cubic-bezier(.2,1.8,.4,1); }
-      #combo.shake { animation: shake .45s; }
-      #combo.lost { --c: #ff4a4a; opacity: 0 !important; transition: opacity .9s .3s; }
-      @keyframes pop { 0% { transform: translateX(-50%) scale(1.6); } 100% { transform: translateX(-50%) scale(1); } }
-      @keyframes shake { 0%,100% { transform: translateX(-50%); } 20% { transform: translateX(calc(-50% - 14px)); }
-        40% { transform: translateX(calc(-50% + 12px)); } 60% { transform: translateX(calc(-50% - 8px)); } 80% { transform: translateX(calc(-50% + 5px)); } }
+      #combo.lost { --c: #ff4a4a; }
+      #combo .ring { animation: beat var(--beat, .9s) ease-in-out infinite; }
+      @keyframes beat { 50% { transform: scale(var(--beatScale, 1)); } }
+      #lines { position: fixed; inset: -20%; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+        background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.22) 0deg 1.2deg, transparent 1.2deg 9deg);
+        -webkit-mask-image: radial-gradient(circle, transparent 38%, #000 70%); mask-image: radial-gradient(circle, transparent 38%, #000 70%);
+        animation: spin 6s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      #vignette { --c: #000; position: fixed; inset: 0; pointer-events: none; opacity: 0;
+        background: radial-gradient(ellipse at center, transparent 45%, color-mix(in srgb, var(--c) 35%, #000) 100%); }
+      #xhint { position: fixed; left: 50%; bottom: 8%; transform: translateX(-50%); display: none; padding: 12px 22px; border-radius: 12px;
+        font-size: 20px; font-weight: 800; background: linear-gradient(90deg,#ff2a3a,#ff8a2a); box-shadow: 0 0 24px #ff3a2a; pointer-events: none; }
       #countdown { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; font-size: 160px;
         font-weight: 900; font-style: italic; text-shadow: 0 6px 30px rgba(0,0,0,.6); pointer-events: none; }
       #police { position: fixed; inset: 0; pointer-events: none; opacity: 0; }
       #glow { --c: #fff; position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 120px 20px var(--c); }
-      #glow.flash { animation: flash .5s ease-out; }
-      @keyframes flash { 0% { opacity: .7; } 100% { opacity: 0; } }
-      .fly { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); font-size: 40px; font-weight: 900;
-        text-shadow: 0 3px 12px rgba(0,0,0,.5); pointer-events: none; transition: all .75s cubic-bezier(.5,0,.8,.4); }
-      .fly.go { left: calc(100% - 90px); top: 22px; font-size: 20px; opacity: 0; }
-      #hud .total.pulse { animation: tpulse .4s; }
-      @keyframes tpulse { 0% { transform: scale(1.35); color: #ffd27a; } 100% { transform: scale(1); } }
+      .fly { position: fixed; font-size: 40px; font-weight: 900; translate: -50% 0;
+        text-shadow: 0 3px 12px rgba(0,0,0,.5); pointer-events: none; }
       #hud .total { transform-origin: right center; }
       #extreme { position: fixed; right: 28px; top: 132px; display: none; padding: 6px 14px; border-radius: 8px; font-weight: 900;
         letter-spacing: 3px; font-style: italic; background: linear-gradient(90deg,#ff2a3a,#ff8a2a); box-shadow: 0 0 18px #ff3a2a; }
@@ -66,7 +67,10 @@
     <div id="pairing"></div>
     <div id="biome"></div>
     <div id="extreme">EXTREME</div>
+    <div id="vignette"></div>
+    <div id="lines"></div>
     <div id="glow"></div>
+    <div id="xhint">🔥 EXTREME modu dene! Telefonda <b>EXTREME</b>'e bas ya da klavyede <b>E</b></div>
     <div id="police"></div>
     <div id="countdown"></div>
     <div id="combo">

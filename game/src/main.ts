@@ -4,6 +4,10 @@ import { Keyboard } from "./net/keyboard";
 import { showPairing, hidePairing } from "./ui/pairing";
 import { Hud, setRecoveryFx } from "./ui/hud";
 import { ComboFx } from "./ui/comboFx";
+import { comboTier } from "./ui/comboTier";
+import { ExtremeHint } from "./ui/extremeHint";
+import { comboFeel } from "./audio/intensity";
+import { animate } from "motion";
 import { createWorld } from "./render/scene";
 import { RoadMesh, setRoadColors } from "./render/roadMesh";
 import { biomeAt as biomeAtRaw, blendPalette, BIOME_LENGTH } from "./world/biomes";
@@ -51,6 +55,13 @@ async function boot() {
   // Extreme mode: faster car, sharper upcoming road, double points.
   let extreme = false;
   const badge = document.getElementById("extreme")!;
+  const vignetteEl = document.getElementById("vignette")!;
+  const linesEl = document.getElementById("lines")!;
+  const xhintEl = document.getElementById("xhint")!;
+  const xhint = new ExtremeHint();
+  let feelM = 0;
+  let bankedCount = 0;
+  let hintShown = false;
   function toggleExtreme() {
     extreme = !extreme;
     score.pointsScale = extreme ? 2 : 1;
@@ -175,6 +186,7 @@ async function boot() {
       const k = Math.max(0.35, 0.7 - 0.1 * (hits.length - 1));
       car = { ...car, vx: car.vx * k, vz: car.vz * k, drifting: false };
       combo.lost();
+      sound.setCombo(0);
       score.cancelCombo();
       sound.crash();
       police.alert(car, road);
@@ -188,6 +200,7 @@ async function boot() {
     car = rec.car;
     if (rec.started) {
       combo.lost();
+      sound.setCombo(0);
       score.cancelCombo();
       sound.whoosh();
       haptic("reset");
@@ -196,8 +209,18 @@ async function boot() {
     if (!recovery.active) {
       const before = { total: score.total, mult: score.multiplier };
       for (const e of score.update(SIM_DT, car.drifting, slipAngle(car), speedOf(car))) {
-        if (e === "comboUp") combo.up(score.multiplier);
-        if (e === "comboEnd") combo.bank(score.total - before.total, before.mult);
+        if (e === "comboUp") {
+          combo.up(score.multiplier);
+          const f = comboFeel(score.multiplier);
+          chase.shake(f.shake);
+          chase.punch(f.fovPunch);
+          sound.setCombo(score.multiplier, true);
+        }
+        if (e === "comboEnd") {
+          combo.bank(score.total - before.total, before.mult);
+          sound.setCombo(0);
+          bankedCount++;
+        }
         haptic(e);
         if (e === "comboUp") sound.ding(score.multiplier);
         if (e === "comboEnd") localStorage.setItem(BEST_KEY, String(score.best));
@@ -305,7 +328,24 @@ async function boot() {
     sound.crowd(Math.min(1, cheering / 12));
     setRecoveryFx(world.renderer.domElement, recovery.active ? recovery.progress : 0);
     combo.update(score.pending, score.multiplier, score.comboTimeLeft());
-    hud.update(score.total, Math.max(score.best, score.total), score.pending, score.multiplier, speedOf(car) * 3.6);
+    hud.update(combo.displayedTotal, Math.max(score.best, score.total), score.pending, score.multiplier, speedOf(car) * 3.6);
+
+    // Combo atmosphere: vignette + speed lines grow with the multiplier.
+    const feelTarget = score.pending > 0 ? score.multiplier : 0;
+    feelM += (feelTarget - feelM) * Math.min(1, 4 * dt);
+    const feel = comboFeel(feelM);
+    vignetteEl.style.opacity = (feel.vignette * 0.85).toFixed(3);
+    vignetteEl.style.setProperty("--c", comboTier(Math.max(1, Math.round(feelM))).color);
+    linesEl.style.opacity = (feel.lines * 0.7).toFixed(3);
+
+    // Suggest extreme mode once.
+    const wantHint = xhint.update(dt, { extremeUsed: extreme, banked: bankedCount }) && started;
+    if (wantHint !== hintShown) {
+      hintShown = wantHint;
+      xhintEl.style.display = "block";
+      animate(xhintEl, wantHint ? { opacity: [0, 1], y: [40, 0], scale: [0.8, 1] } : { opacity: 0, y: 20 }, { duration: 0.4 });
+      if (wantHint) animate(xhintEl, { scale: [1, 1.06, 1] }, { duration: 1.2, repeat: Infinity, delay: 0.4 });
+    }
 
     if (now - lastStatus > 200) {
       lastStatus = now;
