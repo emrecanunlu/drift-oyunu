@@ -65,3 +65,23 @@ describe("Road", () => {
     expect(n.point.s).toBeCloseTo(p.s, 0);
   });
 });
+
+describe("Road pacing", () => {
+  it("has a real corner within the first 150 m", () => {
+    const r = new Road(21);
+    r.ensureAhead(0);
+    const early = r.points.filter((p) => p.s <= 150);
+    const maxK = Math.max(...early.slice(1).map((p, i) => Math.abs(p.heading - early[i].heading) / STEP));
+    expect(maxK).toBeGreaterThan(0.6 * MAX_CURVATURE);
+  });
+  it("allows tight corners (radius 25 m)", () => {
+    expect(MAX_CURVATURE).toBeCloseTo(1 / 25);
+  });
+  it("is mostly corners, not straights", () => {
+    const r = new Road(8);
+    const all = [] as { heading: number }[];
+    for (let s = 0; s <= 5000; s += 50) { all.push(...r.ensureAhead(s)); r.trimBehind(s); }
+    const straight = all.slice(1).filter((p, i) => Math.abs(p.heading - all[i].heading) / STEP < 0.004).length;
+    expect(straight / all.length).toBeLessThan(0.35);
+  });
+});

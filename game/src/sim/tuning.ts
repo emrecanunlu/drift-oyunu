@@ -20,6 +20,8 @@ export const TUNING = {
   maxSlip: 0.8,
   driftEnterSlip: 0.2,
   driftExitSlip: 0.1,
+  /** Slip must stay below driftExitSlip this long (s) before the drift ends — lets you flick side to side. */
+  driftExitDelay: 0.4,
   driftMinSpeed: 15,
   /** Target speed multiplier while drifting. */
   driftSpeedFactor: 0.9,

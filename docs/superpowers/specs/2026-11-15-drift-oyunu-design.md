@@ -32,7 +32,7 @@ değil, akışa girip drift atmanın keyfini çıkarmak.
 
 ## Anti-hedefler (çalışsa bile başarısızlık sayılır)
 
-- Cezalandırıcı zorluk: keskin, ani, ezber gerektiren virajlar.
+- Cezalandırıcı zorluk: ezber gerektiren, uyarısız virajlar. (Kullanıcı isteğiyle 2026-11-15: virajlar keskin — min. yarıçap 25 m — ve yolun başından itibaren sık.)
 - "Game over" ekranı ya da oyunu baştan başlatmak.
 - Direksiyonun gecikmeli, titrek ya da kayan hissettirmesi.
 - Ekranı dolduran, dikkat dağıtan arayüz; skor köşede sakin durmalı.

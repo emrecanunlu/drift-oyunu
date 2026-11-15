@@ -1,13 +1,13 @@
 import { mulberry32 } from "./rng";
 
 export const STEP = 2;
-export const MAX_CURVATURE = 1 / 40;
+export const MAX_CURVATURE = 1 / 25;
 export const MAX_HEADING_DEV = (60 * Math.PI) / 180;
 export const AHEAD = 600;
 export const BEHIND = 150;
 const SOFT_HEADING = (50 * Math.PI) / 180;
-/** Max change of curvature per metre (~30 m to go from 0 to full). */
-const CURV_RATE = MAX_CURVATURE / 30;
+/** Max change of curvature per metre (~15 m to go from 0 to full). */
+const CURV_RATE = MAX_CURVATURE / 15;
 
 /** heading 0 = +z; direction = (sin h, cos h). */
 export type RoadPoint = { s: number; x: number; z: number; heading: number };
@@ -20,7 +20,7 @@ export class Road {
   private rand: () => number;
   private k = 0;
   private targetK = 0;
-  private segLeft = 120; // start with a calm straight
+  private segLeft = 40; // short run-up, then straight into a corner
   private lastSign = 1;
   private hint = 0;
 
@@ -31,15 +31,15 @@ export class Road {
 
   private pickTarget(forceSign?: number) {
     const r = this.rand;
-    if (forceSign === undefined && r() < 0.3) {
+    if (forceSign === undefined && this.points.length > 30 && r() < 0.15) {
       this.targetK = 0;
-      this.segLeft = 80 + r() * 120;
+      this.segLeft = r() < 0.3 ? 100 + r() * 60 : 25 + r() * 25;
       return;
     }
     let sign = forceSign ?? (r() < 0.75 ? -this.lastSign : this.lastSign);
     this.lastSign = sign;
-    this.targetK = sign * (0.4 + 0.6 * r()) * MAX_CURVATURE;
-    this.segLeft = 40 + r() * 80;
+    this.targetK = sign * (0.55 + 0.45 * r()) * MAX_CURVATURE;
+    this.segLeft = 30 + r() * 40;
   }
 
   private extend() {

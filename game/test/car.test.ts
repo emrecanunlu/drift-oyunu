@@ -58,3 +58,15 @@ describe("car", () => {
     expect(maxSlip).toBeLessThanOrEqual(TUNING.maxSlip + 1e-6);
   });
 });
+
+describe("drift transitions", () => {
+  it("keeps drifting when flicking from one side to the other", () => {
+    let c = run(createCar(0, 0, 0, TUNING.cruiseSpeed), { ...IDLE, steer: 1 }, 1.5);
+    expect(c.drifting).toBe(true);
+    const firstSign = Math.sign(slipAngle(c));
+    let broke = false;
+    c = run(c, { ...IDLE, steer: -1 }, 1.5, (s) => (broke ||= !s.drifting));
+    expect(broke).toBe(false);
+    expect(Math.sign(slipAngle(c))).toBe(-firstSign);
+  });
+});

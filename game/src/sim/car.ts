@@ -1,11 +1,15 @@
 import { TUNING, type Tuning } from "./tuning";
 
 /** heading 0 = +z, forward = (sin h, cos h), right = (-cos h, sin h) as seen from a chase camera. */
-export type CarState = { x: number; z: number; heading: number; vx: number; vz: number; yawRate: number; drifting: boolean };
+export type CarState = {
+  x: number; z: number; heading: number; vx: number; vz: number; yawRate: number; drifting: boolean;
+  /** Seconds the slip has been below the exit threshold while drifting. */
+  lowSlipTime: number;
+};
 export type CarInput = { steer: number; brake: boolean; nitro: boolean };
 
 export function createCar(x: number, z: number, heading: number, speed: number): CarState {
-  return { x, z, heading, vx: Math.sin(heading) * speed, vz: Math.cos(heading) * speed, yawRate: 0, drifting: false };
+  return { x, z, heading, vx: Math.sin(heading) * speed, vz: Math.cos(heading) * speed, yawRate: 0, drifting: false, lowSlipTime: 0 };
 }
 
 export function speedOf(c: CarState): number {
@@ -65,10 +69,16 @@ export function stepCar(c: CarState, input: CarInput, dt: number, t: Tuning = TU
 
   const vx = dx * newSpeed;
   const vz = dz * newSpeed;
-  const next: CarState = { x: c.x + vx * dt, z: c.z + vz * dt, heading, vx, vz, yawRate, drifting: c.drifting };
+  const next: CarState = { x: c.x + vx * dt, z: c.z + vz * dt, heading, vx, vz, yawRate, drifting: c.drifting, lowSlipTime: 0 };
 
   const slip = Math.abs(slipAngle(next));
   if (!c.drifting && slip > t.driftEnterSlip && newSpeed > t.driftMinSpeed) next.drifting = true;
-  else if (c.drifting && (slip < t.driftExitSlip || newSpeed < t.driftMinSpeed * 0.8)) next.drifting = false;
+  else if (c.drifting) {
+    next.lowSlipTime = slip < t.driftExitSlip ? c.lowSlipTime + dt : 0;
+    if (next.lowSlipTime >= t.driftExitDelay || newSpeed < t.driftMinSpeed * 0.8) {
+      next.drifting = false;
+      next.lowSlipTime = 0;
+    }
+  }
   return next;
 }
