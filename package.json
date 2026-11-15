@@ -1,0 +1,12 @@
+{
+  "name": "drift-oyunu",
+  "private": true,
+  "workspaces": ["shared", "server", "game", "controller"],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
