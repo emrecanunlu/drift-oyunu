@@ -55,13 +55,13 @@ export class ChaseCamera {
     const fx = Math.sin(h), fz = Math.cos(h);
     const wantPos = new THREE.Vector3(c.x - fx * 8.5, 3.6, c.z - fz * 8.5);
     const wantLook = new THREE.Vector3(c.x + fx * 6, 1.2, c.z + fz * 6);
-    const k = this.init ? 1 - Math.exp(-6 * dt) : 1;
+    const k = this.init ? 1 - Math.exp(-10 * dt) : 1;
     this.init = true;
     this.pos.lerp(wantPos, k);
     this.look.lerp(wantLook, k);
     this.cam.position.copy(this.pos);
     this.cam.lookAt(this.look);
-    const fov = 62 + Math.max(0, speed - TUNING.cruiseSpeed * 0.7) * 0.5 + (nitro ? 6 : 0);
+    const fov = Math.min(88, 62 + Math.max(0, speed - TUNING.cruiseSpeed * 0.6) * 0.45 + (nitro ? 8 : 0));
     this.cam.fov += (fov - this.cam.fov) * Math.min(1, 3 * dt);
     this.cam.updateProjectionMatrix();
   }

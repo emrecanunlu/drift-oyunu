@@ -118,12 +118,12 @@ drift-oyunu/
 
 ### Gaz (otomatik)
 
-- Gaz her zaman açık: araba rahat bir seyir hızına (~110 km/s) kendiliğinden
+- Gaz her zaman açık: araba rahat bir seyir hızına (~110 km/s; kullanıcı isteğiyle 150 km/s) kendiliğinden
   çıkar ve orada kalır. Drift sırasında hız hafifçe düşer, drift bitince tekrar
   seyir hızına toparlanır.
 - Fren: basılı tutuldukça yavaşlar (alt sınır ~40 km/s, durmaz). Bırakınca
   tekrar seyir hızına döner.
-- Nitro: basılı tutuldukça seyir hızının ~%30 üstüne çıkar. Sınırsız (stres
+- Nitro: basılı tutuldukça seyir hızının ~%30 üstüne çıkar (kullanıcı isteğiyle %40 → 210 km/s). Sınırsız (stres
   atma oyunu, kaynak yönetimi yok); kamera FOV'u artar.
 - Ekranda: bağlantı durumu, küçük bir direksiyon göstergesi, skor/kombo.
 - Titreşim: `comboUp` → hafif, `comboEnd` → orta, `reset` → ağır.

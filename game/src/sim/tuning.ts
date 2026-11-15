@@ -1,9 +1,9 @@
 /** All feel constants. Tweak by playing. Units: m, s, rad. */
 export const TUNING = {
-  cruiseSpeed: 30.56, // ~110 km/h
+  cruiseSpeed: 41.67, // 150 km/h
   minBrakeSpeed: 11.11, // ~40 km/h
-  nitroFactor: 1.3,
-  accel: 6,
+  nitroFactor: 1.4, // 210 km/h
+  accel: 10,
   brakeDecel: 9,
   coastDecel: 4,
   /** Max yaw rate from steering (rad/s). */
