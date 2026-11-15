@@ -47,6 +47,13 @@ export function stepCar(c: CarState, input: CarInput, dt: number, t: Tuning = TU
     dx = fx;
     dz = fz;
   }
+  // Cap the drift angle so the car can never spin around.
+  const slipNow = Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz);
+  if (Math.abs(slipNow) > t.maxSlip) {
+    const a = Math.sign(slipNow) * t.maxSlip;
+    dx = fx * Math.cos(a) + rx * Math.sin(a);
+    dz = fz * Math.cos(a) + rz * Math.sin(a);
+  }
 
   // Auto throttle on total speed.
   let target = input.brake ? t.minBrakeSpeed : input.nitro ? t.cruiseSpeed * t.nitroFactor : t.cruiseSpeed;

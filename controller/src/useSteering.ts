@@ -3,7 +3,9 @@ import { Platform } from "react-native";
 import { DeviceMotion } from "expo-sensors";
 import { rollFromGravity, steerFromRoll, lowPass } from "@drift/shared";
 
-const SMOOTH = 0.35;
+const SMOOTH = 0.5;
+/** Degrees of phone rotation for full lock. */
+const RANGE = 25;
 /** Verified on iPhone: raw roll is reversed relative to the game's steer convention. */
 const PLATFORM_SIGN = Platform.OS === "ios" ? -1 : 1;
 
@@ -30,7 +32,7 @@ export function useSteering(invert: boolean) {
       // Smooth via a short low-pass on the angle delta to avoid wrap jumps.
       roll.current = roll.current === null ? r : roll.current + lowPass(0, ((r - roll.current + 540) % 360) - 180, SMOOTH);
       if (center.current === null) center.current = roll.current;
-      const s = steerFromRoll(roll.current, center.current) * PLATFORM_SIGN * (invertRef.current ? -1 : 1);
+      const s = steerFromRoll(roll.current, center.current, { range: RANGE }) * PLATFORM_SIGN * (invertRef.current ? -1 : 1);
       steerRef.current = s;
       setSteer(s);
     });

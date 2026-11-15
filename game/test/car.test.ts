@@ -49,8 +49,12 @@ describe("car", () => {
     expect(c.drifting).toBe(false);
   });
   it("does not spin", () => {
-    let maxYaw = 0;
-    run(createCar(0, 0, 0, TUNING.cruiseSpeed), { ...IDLE, steer: 1 }, 5, (s) => (maxYaw = Math.max(maxYaw, Math.abs(s.yawRate))));
+    let maxYaw = 0, maxSlip = 0;
+    run(createCar(0, 0, 0, TUNING.cruiseSpeed), { ...IDLE, steer: 1 }, 5, (s) => {
+      maxYaw = Math.max(maxYaw, Math.abs(s.yawRate));
+      maxSlip = Math.max(maxSlip, Math.abs(slipAngle(s)));
+    });
     expect(maxYaw).toBeLessThanOrEqual(4);
+    expect(maxSlip).toBeLessThanOrEqual(TUNING.maxSlip + 1e-6);
   });
 });

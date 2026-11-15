@@ -7,15 +7,17 @@ export const TUNING = {
   brakeDecel: 9,
   coastDecel: 4,
   /** Max yaw rate from steering (rad/s). */
-  maxSteerRate: 1.8,
+  maxSteerRate: 2.0,
   /** Yaw rate per m/s of speed at full steer, before the cap. */
-  steerSpeedGain: 0.07,
-  yawResponse: 6,
+  steerSpeedGain: 0.09,
+  yawResponse: 12,
   /** Extra yaw while drifting (more angle, NFS feel). */
   driftYawBoost: 1.15,
   /** Lateral velocity damping (1/s). */
   gripNormal: 8,
   gripDrift: 3,
+  /** Max drift angle (rad, ~45°) — prevents spinning out. */
+  maxSlip: 0.8,
   driftEnterSlip: 0.2,
   driftExitSlip: 0.1,
   driftMinSpeed: 15,
