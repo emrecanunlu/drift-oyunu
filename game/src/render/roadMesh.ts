@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { RoadPoint } from "../sim/road";
 import { mulberry32 } from "../sim/rng";
 import type { Props } from "../world/biomes";
-import { makeProp } from "./props";
+import { makeProp, makeLamp } from "./props";
 
 const CHUNK_POINTS = 25; // 50 m
 const asphalt = new THREE.MeshLambertMaterial({ color: 0x3a3340, side: THREE.DoubleSide });
@@ -77,6 +77,15 @@ export class RoadMesh {
       const off = side * (hw + (city ? 12 : 5) + rand() * 50);
       const x = p.x + Math.cos(p.heading) * off, z = p.z - Math.sin(p.heading) * off;
       group.add(...makeProp(kind, x, z, rand));
+    }
+    if (city) {
+      // Street lamps on both sides, arms reaching over the road.
+      for (const [i, side] of [[6, 1], [19, -1]] as [number, number][]) {
+        const p = pts[i];
+        const nx = Math.cos(p.heading), nz = -Math.sin(p.heading);
+        const off = side * (hw + 2.5);
+        group.add(makeLamp(p.x + nx * off, p.z + nz * off, Math.atan2(-nx * side, -nz * side)));
+      }
     }
     this.scene.add(group);
     this.onChunk?.(pts, kind);
