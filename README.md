@@ -1,9 +1,25 @@
 # Drift
 
-Telefonu direksiyon gibi kullandığın, sonsuz yollu, rahatlatıcı bir drift oyunu.
+Telefonu direksiyon gibi kullandığın, sonsuz yollu bir drift oyunu.
 Oyun bilgisayarın tarayıcısında açılır, iPhone kontrolcü olur.
 
-## Kurulum
+**Özellikler:** dört ortam (çöl, neon şehir, karlı dağ, sonbahar ormanı) · sonsuz prosedürel yol ·
+kombo ve çarpan · extreme mod · tezahürat yapan seyirciler (çarpınca polis gelir) ·
+kodla üretilen motor/lastik/egzoz/siren sesleri ve synthwave müzik · karanlıkta otomatik farlar ·
+bağlantı koparsa duraklama ve 3-2-1 geri sayım.
+
+## Hızlı kurulum
+
+```bash
+# Windows
+powershell -ExecutionPolicy Bypass -File setup.ps1
+# macOS / Linux
+bash setup.sh
+```
+
+Yapay zekâ aracıyla (Claude Code, Cursor, Codex…) açarsan `AGENTS.md` sayesinde kurulumu kendisi başlatır.
+
+## Kurulum (elle)
 
 Gerekenler: Node.js 22+ ve iPhone'da **Expo Go** uygulaması (App Store).
 
@@ -37,6 +53,7 @@ npm install
 | Sağ yarıya basılı tut | Nitro |
 | Kalibre et | O anki duruşu "düz" kabul eder |
 | Yönü çevir | Araba ters yöne dönüyorsa bas |
+| EXTREME | Extreme modu açar/kapatır (klavyede E) |
 
 Telefonsuz denemek için: ← → direksiyon, ↓ fren, ↑ nitro.
 
