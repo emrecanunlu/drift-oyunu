@@ -47,7 +47,7 @@ export class CarModel {
   private pitch = 0;
   private prevSpeed = 0;
 
-  constructor(opts: { paint?: number; police?: boolean } = {}) {
+  constructor(opts: { paint?: number; police?: boolean; beam?: boolean } = {}) {
     const paint = new THREE.MeshStandardMaterial({ color: opts.paint ?? 0xff4a3a, metalness: 0.35, roughness: 0.35, flatShading: true });
     const glass = new THREE.MeshStandardMaterial({ color: 0x141c2c, metalness: 0.6, roughness: 0.15 });
     const trim = new THREE.MeshStandardMaterial({ color: 0x18161c, roughness: 0.8 });
@@ -109,7 +109,7 @@ export class CarModel {
     this.beam = new THREE.SpotLight(0xfff2d8, 0, 120, 0.55, 0.6, 1);
     this.beam.position.set(0, 0.8, 2.3);
     this.beam.target.position.set(0, 0, 26);
-    this.root.add(this.beam, this.beam.target);
+    if (opts.beam !== false) this.root.add(this.beam, this.beam.target);
 
     // Soft additive light pool on the road ahead, so beams read even on dark asphalt.
     const c = document.createElement("canvas");
@@ -128,7 +128,7 @@ export class CarModel {
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(0, 0.05, 2.3 + 11);
     pool.renderOrder = 2;
-    this.root.add(pool);
+    if (opts.beam !== false) this.root.add(pool);
   }
   private poolMat: THREE.MeshBasicMaterial;
   private flames: THREE.Mesh[] = [];
@@ -182,9 +182,9 @@ export class CarModel {
     r.position.set(-0.3, 1.53, -0.2);
     const b = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.26), blue);
     b.position.set(0.3, 1.53, -0.2);
-    const lr = new THREE.PointLight(0xff1a2a, 0, 25, 1.4);
+    const lr = new THREE.PointLight(0xff1a2a, 0, 14, 2);
     lr.position.set(-0.4, 1.8, -0.2);
-    const lb = new THREE.PointLight(0x2a5aff, 0, 25, 1.4);
+    const lb = new THREE.PointLight(0x2a5aff, 0, 14, 2);
     lb.position.set(0.4, 1.8, -0.2);
     this.body.add(base, r, b, lr, lb);
     this.bar = { red, blue, lr, lb };
@@ -198,8 +198,8 @@ export class CarModel {
     const blueOn = on && (phase === 2 || phase === 3) && Math.floor(t * 24) % 2 === 0;
     this.bar.red.color.setHex(redOn ? 0xff2a3a : 0x400008);
     this.bar.blue.color.setHex(blueOn ? 0x3a6aff : 0x000a40);
-    this.bar.lr.intensity = redOn ? 40 : 0;
-    this.bar.lb.intensity = blueOn ? 40 : 0;
+    this.bar.lr.intensity = redOn ? 10 : 0;
+    this.bar.lb.intensity = blueOn ? 10 : 0;
   }
 
   /** One exhaust pop: a short burst of flame. */

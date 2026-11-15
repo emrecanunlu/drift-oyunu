@@ -19,7 +19,7 @@ import { Recovery } from "./sim/recovery";
 import { DriftBuzz } from "./sim/driftBuzz";
 import { Crowd } from "./sim/crowd";
 import { Exhaust } from "./sim/exhaust";
-import { Police } from "./sim/police";
+import { PoliceForce, type PoliceUnit } from "./sim/policeForce";
 import { PauseControl, type PauseState } from "./sim/pause";
 import { TUNING, EXTREME } from "./sim/tuning";
 import { mulberry32 } from "./sim/rng";
@@ -82,18 +82,16 @@ async function boot() {
       if (pts[0].s < 150) return; // keep the start clear
       const rand = mulberry32(seed ^ (Math.floor(pts[0].s) * 7919));
       crowdView.add(crowd.spawnChunk(pts, rand, kind === "city" ? 1 : 0.7), kind);
+      if (pts[0].s > 300 && rand() < 0.12) police.park(pts[12], road.halfWidth);
     },
   );
   const exhaust = new Exhaust();
-  const police = new Police();
-  (window as unknown as { __police: Police }).__police = police; // debug handle
-  const policeCar = new CarModel({ paint: 0x15151c, police: true });
-  policeCar.root.visible = false;
-  policeCar.setLights(1);
-  world.scene.add(policeCar.root);
+  const police = new PoliceForce();
+  // Debug handles (used by browser checks).
+  Object.assign(window, { __police: police, __alert: () => police.alert(car, road) });
+  const policeViews = new Map<PoliceUnit, CarModel>();
   const policeFx = document.getElementById("police")!;
-  let prevPoliceDist = police.distance;
-  let policeLateral = 0;
+  let prevPoliceDist = Infinity;
 
   const sound = new Sound();
   const soundBtn = document.getElementById("sound")!;
@@ -179,11 +177,12 @@ async function boot() {
       combo.lost();
       score.cancelCombo();
       sound.crash();
-      police.alert();
+      police.alert(car, road);
       chase.shake(0.6 + 0.15 * hits.length);
       haptic("reset");
     }
 
+    police.update(SIM_DT, car, road);
     const rec = recovery.update(SIM_DT, car, road);
     if (rec.car !== car) chase.snap();
     car = rec.car;
@@ -267,24 +266,30 @@ async function boot() {
       }
     }
 
-    // Police: drive along the road behind the player, flash, siren with doppler.
-    police.update(dt);
-    const pp = police.state === "off" ? null : road.pointAt(carS - police.distance);
-    policeCar.root.visible = pp !== null;
-    if (pp) {
-      const near = road.nearest(car.x, car.z);
-      const side = (car.x - near.point.x) * Math.cos(near.point.heading) - (car.z - near.point.z) * Math.sin(near.point.heading);
-      const beside = side + (side > 0 ? -4.5 : 4.5); // alongside, not on top of the player
-      policeLateral += (Math.max(-9, Math.min(9, beside)) - policeLateral) * Math.min(1, 2 * dt);
-      const nx = Math.cos(pp.heading), nz = -Math.sin(pp.heading);
-      const pc = createCar(pp.x + nx * policeLateral, pp.z + nz * policeLateral, pp.heading, spd);
-      policeCar.update(pc, { steer: 0, brake: false, nitro: false }, dt);
-      policeCar.flashBar(now / 1000, true);
+    // Police: one model per unit, driven by the sim; light bars flash once they are chasing.
+    const lightLevel = Math.min(1, Math.max(0, (1.15 - pal.sunIntensity) / 0.45));
+    for (const u of police.units) {
+      let view = policeViews.get(u);
+      if (!view) {
+        view = new CarModel({ paint: 0x15151c, police: true, beam: false });
+        world.scene.add(view.root);
+        policeViews.set(u, view);
+      }
+      view.update(u.car, { steer: 0, brake: false, nitro: false }, dt);
+      view.setLights(lightLevel * 0.5);
+      view.flashBar(now / 1000 + (u.lane > 0 ? 0.33 : 0), u.state !== "parked");
     }
-    const closing = (prevPoliceDist - police.distance) / Math.max(dt, 1e-3);
-    prevPoliceDist = police.distance;
-    sound.siren(police.sirenLevel, 343 / (343 - Math.max(-60, Math.min(60, closing))));
-    const lvl = police.sirenLevel;
+    for (const [u, view] of policeViews) {
+      if (!police.units.includes(u)) {
+        world.scene.remove(view.root);
+        policeViews.delete(u);
+      }
+    }
+    const pd = police.nearestDistance(car);
+    const closing = pd === Infinity || prevPoliceDist === Infinity ? 0 : (prevPoliceDist - pd) / Math.max(dt, 1e-3);
+    prevPoliceDist = pd;
+    const lvl = police.sirenLevel(car);
+    sound.siren(lvl, 343 / (343 - Math.max(-60, Math.min(60, closing))));
     const blue = Math.floor(now / 250) % 2 === 0;
     policeFx.style.opacity = (lvl * 0.8).toFixed(2);
     policeFx.style.boxShadow = blue
