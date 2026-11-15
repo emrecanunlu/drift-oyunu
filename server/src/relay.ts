@@ -31,8 +31,15 @@ export async function createServer(opts: { port: number; staticDir?: string }) {
       return;
     }
     const root = path.resolve(opts.staticDir);
-    const file = path.resolve(root, "." + (url === "/" ? "/index.html" : decodeURIComponent(url)));
-    if (!file.startsWith(root)) {
+    let rel: string;
+    try {
+      rel = url === "/" ? "/index.html" : decodeURIComponent(url);
+    } catch {
+      res.writeHead(400).end();
+      return;
+    }
+    const file = path.resolve(root, "." + rel);
+    if (file !== root && !file.startsWith(root + path.sep)) {
       res.writeHead(403).end();
       return;
     }

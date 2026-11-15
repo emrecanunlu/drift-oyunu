@@ -98,3 +98,18 @@ describe("relay", () => {
     expect(body.wsUrl).toMatch(new RegExp(`^ws://.+:${srv.port}$`));
   });
 });
+
+describe("static files", () => {
+  it("survives a malformed URL and keeps serving", async () => {
+    srv = await createServer({ port: 0, staticDir: "." });
+    const bad = await fetch(`http://127.0.0.1:${srv.port}/%E0%A4%A`);
+    expect(bad.status).toBe(400);
+    const ok = await fetch(`http://127.0.0.1:${srv.port}/config.json`);
+    expect(ok.status).toBe(200);
+  });
+  it("does not serve files outside the static dir via a sibling prefix", async () => {
+    srv = await createServer({ port: 0, staticDir: "server" });
+    const res = await fetch(`http://127.0.0.1:${srv.port}/..%2Fserver-x%2Fsecret`);
+    expect([403, 404]).toContain(res.status);
+  });
+});
