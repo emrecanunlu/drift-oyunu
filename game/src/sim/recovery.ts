@@ -1,7 +1,12 @@
 import { createCar, speedOf, type CarState } from "./car";
 import type { Road } from "./road";
 
-export const OFFROAD_MARGIN = 2;
+/** Past the edge by more than this (m) counts as off-road. */
+export const OFFROAD_MARGIN = 3;
+/** Seconds you may stay off-road before being put back. */
+export const OFFROAD_GRACE = 1.2;
+/** Past the edge by more than this (m) → put back immediately. */
+export const FAR_MARGIN = 15;
 export const EFFECT_DURATION = 0.6;
 
 export class Recovery {
@@ -10,10 +15,14 @@ export class Recovery {
   progress = 0;
   private elapsed = 0;
   private placed = false;
+  private offTime = 0;
 
   update(dt: number, car: CarState, road: Road): { car: CarState; started: boolean } {
     if (!this.active) {
-      if (road.nearest(car.x, car.z).distance <= road.halfWidth + OFFROAD_MARGIN) return { car, started: false };
+      const past = road.nearest(car.x, car.z).distance - road.halfWidth;
+      this.offTime = past > OFFROAD_MARGIN ? this.offTime + dt : 0;
+      if (past <= FAR_MARGIN && this.offTime < OFFROAD_GRACE) return { car, started: false };
+      this.offTime = 0;
       this.active = true;
       this.elapsed = 0;
       this.progress = 0;
