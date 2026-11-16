@@ -5,7 +5,7 @@ Tek gereken: **Node.js 22+** (https://nodejs.org) ve iPhone'da **Expo Go** (App 
 ## Klonla ve oyna
 
 ```bash
-git clone https://github.com/<kullanici>/drift-oyunu.git
+git clone https://github.com/emrecanunlu/drift-oyunu.git
 cd drift-oyunu
 npm start
 ```
