@@ -3,7 +3,10 @@
   "private": true,
   "workspaces": ["shared", "server", "game", "controller"],
   "scripts": {
+    "setup": "node scripts/ensure-setup.mjs && vitest run && npm -w game run build",
     "test": "vitest run",
+    "prestart": "node scripts/ensure-setup.mjs",
+    "precontroller": "node scripts/ensure-setup.mjs",
     "start": "npm -w game run build && npx tsx server/src/main.ts",
     "controller": "npm -w controller run start"
   },

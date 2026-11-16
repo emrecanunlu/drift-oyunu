@@ -10,6 +10,8 @@ bağlantı koparsa duraklama ve 3-2-1 geri sayım.
 
 ## Hızlı kurulum
 
+Ayrıntılar [KURULUM.md](KURULUM.md) dosyasında. Kısaca: klonla, `npm start` de; paketler ilk açılışta kendiliğinden kurulur.
+
 ```bash
 # Windows
 powershell -ExecutionPolicy Bypass -File setup.ps1
